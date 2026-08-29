@@ -2,9 +2,9 @@
 
 ## Current Phase
 
-DAY 1 COMPLETE — SKELETON
+PHASE 2 COMPLETE â€” OCR, DETECTION, EXTRACTION
 
-## Immediate
+## Completed
 
 - [x] Initialize project structure
 - [x] Create Streamlit application
@@ -16,8 +16,15 @@ DAY 1 COMPLETE — SKELETON
 - [x] Verify test suite passes
 - [x] Initialize Git repository
 - [x] Create AI continuity documentation
+- [x] Integrate EasyOCR
+- [x] Implement document type detection (keyword heuristic)
+- [x] Implement field extraction (regex-based)
+- [x] Add OCR tests (mocked â€” no model downloads in test suite)
+- [x] Add document detection tests
+- [x] Add field extraction tests
+- [x] Update interface contract tests
 
-## Day 2
+## Day 2 (remaining)
 
 - [ ] Review and polish preprocessing
 - [ ] Review Streamlit UI
@@ -25,19 +32,17 @@ DAY 1 COMPLETE — SKELETON
 - [ ] Verify configuration management
 - [ ] Prepare safe synthetic/test document data
 
-## Day 3
+## Day 3 (remaining)
 
-- [ ] Integrate EasyOCR
-- [ ] Test OCR on representative sample images
-- [ ] Implement initial document type detection
-- [ ] Add OCR tests
+- [ ] Test OCR on representative sample images (manual integration test)
+- [ ] Tune OCR confidence threshold if needed
+- [ ] Improve document type detection accuracy if needed
 
 ## Day 4
 
-- [ ] Implement field extraction
-- [ ] Implement Aadhaar field validation
-- [ ] Implement PAN field validation
-- [ ] Implement Voter ID field validation
+- [ ] Implement Aadhaar field validation (Verhoeff checksum)
+- [ ] Implement PAN field validation (format checks)
+- [ ] Implement Voter ID field validation (format checks)
 - [ ] Add relevant tests
 
 ## Day 5

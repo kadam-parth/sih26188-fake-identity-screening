@@ -2,7 +2,7 @@
 
 ## Project
 
-SIH26188 � AI-Based Fake Identity & Document Screening System
+SIH26188 - AI-Based Fake Identity & Document Screening System
 
 ## Current Goal
 
@@ -14,98 +14,82 @@ or whether a document is definitively fake.
 
 ## Current Development Stage
 
-DAY 1 � PROJECT SKELETON
+PHASE 2 COMPLETE — OCR, DOCUMENT DETECTION, FIELD EXTRACTION
 
-The initial Streamlit skeleton has been created and tested.
+The initial skeleton has been extended with three real implementations:
+OCR (EasyOCR wrapper), document type detection (keyword heuristic),
+and field extraction (regex-based).
 
 Current test result:
 
-37 tests passed.
+89 tests passed (37 original + 52 new).
 
 ## What Currently Exists
 
-Working components include:
+### Fully implemented components:
 
-- Streamlit application
-- Basic dashboard UI
-- Screening page
-- History page
-- About/privacy section
-- SQLite database module
-- Image preprocessing module
-- Utility/configuration modules
-- Initial test suite
-- Module interfaces/stubs for future functionality
+- Streamlit application (dashboard, screening, history, about pages)
+- Image preprocessing module (OpenCV pipeline)
+- SQLite database module (full CRUD)
+- Utility/configuration modules (masking, formatting, risk levels)
+- **OCR engine** (EasyOCR wrapper with lazy initialization)
+- **Document type detector** (keyword-frequency heuristic for Aadhaar,
+  PAN, Voter ID)
+- **Field extractor** (regex-based extraction using patterns from config)
 
-## IMPORTANT CURRENT LIMITATION
+### Modules still in stub form:
 
-The major fraud-screening pipeline is NOT fully implemented yet.
-
-The following areas currently contain initial interfaces/stubs and must not
-be described as fully implemented:
-
-- OCR
-- Document type detection
-- Field extraction
-- Document validation
-- Tampering analysis
-- Cross-document consistency
-- Risk scoring
+- Document validation (validators.py)
+- Tampering analysis (tampering.py)
+- Cross-document consistency (consistency.py)
+- Risk scoring (scoring.py)
 
 Future AI agents must inspect the actual source code before claiming any
-feature is implemented.
+stub feature is implemented.
+
+## Implementation Details — Phase 2
+
+### OCR Engine (src/ocr/engine.py)
+
+- Wraps EasyOCR with lazy initialization (no model download at import).
+- Returns structured results: text, confidence, per-region details, bbox.
+- Filters regions below OCR_CONFIDENCE_THRESHOLD (0.3).
+- Confidence is character-weighted average across accepted regions.
+- Handles None images, empty results, and EasyOCR exceptions.
+- All unit tests mock easyocr.Reader — no model downloads in test suite.
+
+### Document Detector (src/documents/detector.py)
+
+- Rule-based keyword-frequency heuristic — NOT a trained ML classifier.
+- Uses word-boundary matching for single-word keywords to avoid false
+  substring positives (e.g., "pan" does not match "company").
+- Uses phrase matching for multi-word keywords.
+- Requires >= 2 keyword hits to report a match.
+- Returns confidence as matched_count / total_keywords.
+
+### Field Extractor (src/documents/extractor.py)
+
+- Applies regex patterns defined in config.py for each document type.
+- Extraction confidence is set to 0.7 (EXTRACTION_CONFIDENCE), NOT 1.0.
+- A regex match does not prove the extracted value is correct — OCR text
+  may contain errors and patterns may capture false positives.
+- Confidence is a documented heuristic, NOT a calibrated probability.
+- Handles unknown document types, empty text, and partial extraction.
 
 ## Initial Document Types
-
-Planned initial document types:
 
 1. Aadhaar
 2. PAN Card
 3. Voter ID
 
-The architecture should allow additional document types later.
+The architecture allows additional document types by editing config.py.
 
 ## Planned Workflow
 
-User
-?
-Upload document(s)
-?
-Image preprocessing
-?
-Document type detection
-?
-OCR
-?
-Field extraction
-?
-Document validation
-?
-Tampering/anomaly analysis
-?
-Cross-document consistency
-?
-Risk engine
-?
-Explainable result
-?
-Human review recommendation
-
-## Planned Core Features
-
-1. Document upload
-2. Image preprocessing
-3. Document type identification
-4. OCR
-5. Identity field extraction
-6. Document format/field validation
-7. Image anomaly/tampering analysis
-8. Cross-document consistency checking
-9. Optional face verification
-10. Risk scoring
-11. Explainable screening report
-12. Screening history
-13. Privacy-conscious document handling
+User → Upload document(s) → Image preprocessing → Document type detection
+→ OCR → Field extraction → Document validation → Tampering/anomaly analysis
+→ Cross-document consistency → Risk engine → Explainable result → Human
+review recommendation
 
 ## Current Technology Direction
 
@@ -129,11 +113,7 @@ reliably within the 10-day hackathon.
 
 ## Risk Model
 
-Risk levels:
-
-- LOW
-- MEDIUM
-- HIGH
+Risk levels: LOW, MEDIUM, HIGH
 
 The risk engine should initially be explainable and rule-based.
 
@@ -156,47 +136,33 @@ The MVP should:
 ## Current Environment
 
 Development environment is Windows.
-
-Current Python environment observed during Day 1:
-
 Python 3.13.2
-
-The original target was Python 3.11 or compatible Python.
-
-Do not change Python versions unnecessarily while the current environment is
-working.
+Virtual environment in venv/
 
 ## Current Project Location
 
-Current local development workspace:
-
-C:\Users\kadam\.gemini\antigravity\scratch\sih26188-fake-identity-screening
-
-This should eventually be moved or copied to a permanent project location
-outside the Antigravity scratch directory after the working version has been
-safely committed to Git.
+C:\Users\kadam\Documents\SIH26188\sih26188-fake-identity-screening
 
 ## Git Status
 
-Git repository has been initialized locally.
-
-The project currently has no commits at the time this document was created.
-
-GitHub remote has not yet been configured.
-
-## Current Priority
-
-1. Preserve the working Day 1 skeleton.
-2. Create the first clean Git commit.
-3. Push the project to GitHub.
-4. Establish AI-continuity documentation.
-5. Begin OCR integration only after the repository is safely backed up.
+GitHub remote configured (origin/main).
+Project has commits and is synced.
 
 ## Current Test Status
 
-37/37 tests passed during initial skeleton verification.
+89/89 tests passed.
+
+- tests/test_db.py — 10 tests (database)
+- tests/test_preprocessing.py — 11 tests (image preprocessing)
+- tests/test_validators.py — 16 tests (interface contracts, 3 updated + 4 stub)
+- tests/test_ocr.py — 14 tests (OCR wrapper, mocked)
+- tests/test_detector.py — 17 tests (document detection)
+- tests/test_extractor.py — 21 tests (field extraction)
+
+All OCR tests use mocked easyocr.Reader. No model downloads required
+to run the test suite. No internet access required.
 
 ## Next Major Development Task
 
-Integrate reliable OCR and document-type detection while preserving the
-existing working skeleton.
+Implement document validation (Verhoeff checksum for Aadhaar, format
+checks for PAN and Voter ID) — TODO Day 4.

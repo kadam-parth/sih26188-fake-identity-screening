@@ -1,4 +1,4 @@
-# ARCHITECTURE
+ï»¿# ARCHITECTURE
 
 ## System Purpose
 
@@ -45,7 +45,7 @@ Each major responsibility should remain independently testable.
 ## Current Directory Structure
 
 sih26188-fake-identity-screening/
-¦
+Â¦
 +-- app.py
 +-- requirements.txt
 +-- README.md
@@ -56,46 +56,46 @@ sih26188-fake-identity-screening/
 +-- DECISIONS.md
 +-- CHANGELOG.md
 +-- .gitignore
-¦
+Â¦
 +-- src/
-¦   +-- __init__.py
-¦   +-- config.py
-¦   ¦
-¦   +-- ocr/
-¦   ¦   +-- __init__.py
-¦   ¦   +-- engine.py
-¦   ¦
-¦   +-- documents/
-¦   ¦   +-- __init__.py
-¦   ¦   +-- detector.py
-¦   ¦   +-- extractor.py
-¦   ¦   +-- validators.py
-¦   ¦
-¦   +-- vision/
-¦   ¦   +-- __init__.py
-¦   ¦   +-- preprocessing.py
-¦   ¦   +-- tampering.py
-¦   ¦
-¦   +-- verification/
-¦   ¦   +-- __init__.py
-¦   ¦   +-- consistency.py
-¦   ¦
-¦   +-- risk/
-¦   ¦   +-- __init__.py
-¦   ¦   +-- scoring.py
-¦   ¦
-¦   +-- database/
-¦   ¦   +-- __init__.py
-¦   ¦   +-- db.py
-¦   ¦
-¦   +-- utils/
-¦       +-- __init__.py
-¦       +-- helpers.py
-¦
+Â¦   +-- __init__.py
+Â¦   +-- config.py
+Â¦   Â¦
+Â¦   +-- ocr/
+Â¦   Â¦   +-- __init__.py
+Â¦   Â¦   +-- engine.py
+Â¦   Â¦
+Â¦   +-- documents/
+Â¦   Â¦   +-- __init__.py
+Â¦   Â¦   +-- detector.py
+Â¦   Â¦   +-- extractor.py
+Â¦   Â¦   +-- validators.py
+Â¦   Â¦
+Â¦   +-- vision/
+Â¦   Â¦   +-- __init__.py
+Â¦   Â¦   +-- preprocessing.py
+Â¦   Â¦   +-- tampering.py
+Â¦   Â¦
+Â¦   +-- verification/
+Â¦   Â¦   +-- __init__.py
+Â¦   Â¦   +-- consistency.py
+Â¦   Â¦
+Â¦   +-- risk/
+Â¦   Â¦   +-- __init__.py
+Â¦   Â¦   +-- scoring.py
+Â¦   Â¦
+Â¦   +-- database/
+Â¦   Â¦   +-- __init__.py
+Â¦   Â¦   +-- db.py
+Â¦   Â¦
+Â¦   +-- utils/
+Â¦       +-- __init__.py
+Â¦       +-- helpers.py
+Â¦
 +-- data/
-¦   +-- samples/
-¦   +-- test_cases/
-¦
+Â¦   +-- samples/
+Â¦   +-- test_cases/
+Â¦
 +-- tests/
 
 The exact structure may evolve if there is a strong technical reason.
@@ -314,9 +314,24 @@ documented, configurable, and privacy-reviewed.
 
 ## Current Architectural Status
 
-The project currently contains the initial skeleton and interfaces.
+The following modules are fully implemented:
 
-Several pipeline components are still stubs.
+- app.py â€” Streamlit UI and pipeline orchestration
+- src/config.py â€” centralized configuration and document type definitions
+- src/vision/preprocessing.py â€” OpenCV image preprocessing pipeline
+- src/database/db.py â€” SQLite screening history (full CRUD)
+- src/utils/helpers.py â€” privacy masking, formatting, logging
+- src/ocr/engine.py â€” EasyOCR wrapper with lazy initialization
+- src/documents/detector.py â€” keyword-frequency document type heuristic
+- src/documents/extractor.py â€” regex-based field extraction
+
+The following modules are still stubs:
+
+- src/documents/validators.py â€” document field validation
+- src/vision/tampering.py â€” image anomaly/tampering analysis
+- src/verification/consistency.py â€” cross-document consistency
+- src/risk/scoring.py â€” weighted risk scoring engine
 
 Future agents must inspect actual source code before claiming functionality
 is implemented.
+

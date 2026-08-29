@@ -202,3 +202,55 @@ be committed to GitHub.
 The repository may be shared with judges, teammates, or external developers.
 
 Synthetic or explicitly safe test data should be used instead.
+
+---
+
+## Decision 014 - Mocked OCR Tests
+
+### Decision
+
+All OCR unit tests mock easyocr.Reader. The normal test suite (pytest tests/ -v)
+must work without internet access and without downloading OCR model weights.
+
+### Reason
+
+The baseline test suite must remain fast and reliable. Model downloads add
+~100 MB of network traffic and significant latency. Tests should validate
+the wrapper logic, not the underlying OCR library.
+
+Real EasyOCR integration testing is done manually or via clearly separated
+optional tests.
+
+---
+
+## Decision 015 - Extraction Confidence is Not 1.0
+
+### Decision
+
+Regex-based field extraction assigns a heuristic confidence of 0.7
+(EXTRACTION_CONFIDENCE), not 1.0, to every extracted field.
+
+### Reason
+
+A regex match confirms a pattern was found in OCR text, but it does not
+prove the extracted value is correct. OCR noise, misreads, and regex
+over-matching mean extracted values may be wrong. 1.0 would falsely
+imply certainty. The 0.7 value is a documented heuristic, not a
+calibrated probability.
+
+---
+
+## Decision 016 - Word-Boundary Document Detection
+
+### Decision
+
+The document type detector uses word-boundary regex matching for single
+keywords (e.g., \bpan\b) to prevent false substring matches. Multi-word
+phrases use plain substring matching after normalization.
+
+### Reason
+
+Naive substring matching causes false positives. For example, the keyword
+"pan" would incorrectly match "company" or "pandemic". Word-boundary
+matching prevents this while still being simple and fast. This is a
+rule-based heuristic, not a trained ML classifier.

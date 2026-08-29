@@ -1,5 +1,12 @@
-"""Tests for stub modules — verify interfaces don't crash."""
+"""Tests for module interfaces — verify return schemas and contracts.
+
+Modules that have been implemented (OCR, Detector, Extractor) are
+tested for their real return schema.  Modules still in stub form
+(Validator, Tampering, Consistency, Risk) are tested for their stub
+contracts.  OCR tests mock easyocr.Reader to avoid model downloads.
+"""
 from __future__ import annotations
+from unittest.mock import MagicMock, patch
 
 import numpy as np
 import pytest
@@ -13,12 +20,17 @@ from src.verification.consistency import ConsistencyChecker
 from src.risk.scoring import RiskScorer
 
 
-class TestOCREngineStub:
+class TestOCREngine:
     def test_init(self) -> None:
         engine = OCREngine()
         assert engine is not None
 
-    def test_extract_returns_expected_keys(self) -> None:
+    @patch("easyocr.Reader")
+    def test_extract_returns_expected_keys(self, mock_reader_cls) -> None:
+        mock_reader = MagicMock()
+        mock_reader.readtext.return_value = []
+        mock_reader_cls.return_value = mock_reader
+
         engine = OCREngine()
         img = np.zeros((100, 100, 3), dtype=np.uint8)
         result = engine.extract_text(img)
@@ -26,37 +38,37 @@ class TestOCREngineStub:
         assert "text" in result
         assert "confidence" in result
         assert "status" in result
-        assert result["status"] == "not_implemented"
+        assert result["status"] in ("success", "no_text", "error")
 
 
-class TestDocumentDetectorStub:
+class TestDocumentDetector:
     def test_init(self) -> None:
         detector = DocumentDetector()
         assert detector is not None
 
     def test_detect_returns_expected_keys(self) -> None:
         detector = DocumentDetector()
-        result = detector.detect("sample text")
+        result = detector.detect("Government of India Aadhaar UIDAI")
         assert isinstance(result, dict)
         assert "document_type" in result
         assert "document_name" in result
         assert "confidence" in result
-        assert result["status"] == "not_implemented"
+        assert result["status"] in ("success", "no_match")
 
 
-class TestFieldExtractorStub:
+class TestFieldExtractor:
     def test_init(self) -> None:
         extractor = FieldExtractor()
         assert extractor is not None
 
     def test_extract_returns_expected_keys(self) -> None:
         extractor = FieldExtractor()
-        result = extractor.extract("sample text", "aadhaar")
+        result = extractor.extract("Name: John Doe\n1234 5678 9012", "aadhaar")
         assert isinstance(result, dict)
         assert "fields" in result
         assert "extraction_count" in result
         assert "total_fields" in result
-        assert result["status"] == "not_implemented"
+        assert result["status"] in ("success", "partial", "no_fields")
 
     def test_extract_unknown_doc_type(self) -> None:
         extractor = FieldExtractor()
