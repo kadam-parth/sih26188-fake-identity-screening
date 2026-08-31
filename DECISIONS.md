@@ -254,3 +254,69 @@ Naive substring matching causes false positives. For example, the keyword
 "pan" would incorrectly match "company" or "pandemic". Word-boundary
 matching prevents this while still being simple and fast. This is a
 rule-based heuristic, not a trained ML classifier.
+
+---
+
+## Decision 017 - Verhoeff Checksum is Structural Only
+
+### Decision
+
+The Aadhaar Verhoeff checksum validator only confirms structural consistency
+of the 12-digit number. A valid checksum does NOT prove that the number
+exists in any government database or belongs to any person.
+
+### Reason
+
+The project must avoid implying external verification. The Verhoeff algorithm
+is a mathematical check-digit algorithm. Passing it is a necessary but not
+sufficient condition for a legitimate Aadhaar number. This distinction must
+be clearly communicated in all validation messages and documentation.
+
+---
+
+## Decision 018 - Validation Language
+
+### Decision
+
+Validation results use careful language: "structural validation failed",
+"suspicious indicator", "potential validation issue", "human review
+recommended". The system never claims "fraud detected", "document is fake",
+or "person is fraudulent".
+
+### Reason
+
+The system is a screening aid, not a legal authority. Validation failures
+are indicators that warrant human review, not proof of fraud or forgery.
+This is consistent with the project's core ethical principle (Decision 012).
+
+---
+
+## Decision 019 - Deterministic Validation (No Invented Confidence)
+
+### Decision
+
+Validation checks produce deterministic passed/failed results, not
+probability scores. The validator does not invent statistical confidence
+values for rule-based checks.
+
+### Reason
+
+A regex match or Verhoeff checksum result is binary. Attaching a fabricated
+probability to a deterministic check would be misleading. Validation
+results use clear fields: passed, failed, status, check_name, message.
+
+---
+
+## Decision 020 - OCR Image Input (Grayscale for EasyOCR)
+
+### Decision
+
+The OCR pipeline uses the preprocessed grayscale image (not the
+adaptive-threshold binary image) as input to EasyOCR.
+
+### Reason
+
+EasyOCR works poorly on hard-binarised images because thresholding destroys
+the gradient information its internal models need. Grayscale preserves
+enough visual structure for reliable text recognition while still
+benefiting from denoising.

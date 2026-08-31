@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-PHASE 2 COMPLETE — OCR, DETECTION, EXTRACTION
+PHASE 3 COMPLETE — OCR, DETECTION, EXTRACTION, VALIDATION
 
 ## Completed
 
@@ -23,34 +23,50 @@ PHASE 2 COMPLETE — OCR, DETECTION, EXTRACTION
 - [x] Add document detection tests
 - [x] Add field extraction tests
 - [x] Update interface contract tests
+- [x] Fix OCR image input (grayscale instead of threshold)
+- [x] Fix OCR display in Streamlit (expanded, status handling)
+- [x] Update stale "pending implementation" messages
+- [x] Add integration tests (mocked full pipeline)
+- [x] Create manual real-EasyOCR test script
+- [x] Test real OCR on synthetic document image
+- [x] Implement Aadhaar field validation (Verhoeff checksum)
+- [x] Implement PAN field validation (format checks)
+- [x] Implement Voter ID field validation (format checks)
+- [x] Implement required-field presence checks
+- [x] Implement date validation (format + plausibility)
+- [x] Implement field normalization before validation
+- [x] Add comprehensive validator tests (48 tests, all synthetic data)
+- [x] Add validation step to integration test
+- [x] Add validation display to Streamlit UI (table + findings)
+- [x] Update manual OCR test with validation step
 
 ## Day 2 (remaining)
 
 - [ ] Review and polish preprocessing
-- [ ] Review Streamlit UI
+- [x] Review Streamlit UI
 - [ ] Improve error handling
 - [ ] Verify configuration management
 - [ ] Prepare safe synthetic/test document data
 
 ## Day 3 (remaining)
 
-- [ ] Test OCR on representative sample images (manual integration test)
+- [x] Test OCR on representative sample images (manual integration test)
 - [ ] Tune OCR confidence threshold if needed
 - [ ] Improve document type detection accuracy if needed
 
-## Day 4
+## Day 4 (complete)
 
-- [ ] Implement Aadhaar field validation (Verhoeff checksum)
-- [ ] Implement PAN field validation (format checks)
-- [ ] Implement Voter ID field validation (format checks)
-- [ ] Add relevant tests
+- [x] Implement Aadhaar field validation (Verhoeff checksum)
+- [x] Implement PAN field validation (format checks)
+- [x] Implement Voter ID field validation (format checks)
+- [x] Add relevant tests
 
-## Day 5
+## Day 5 (partial)
 
-- [ ] Implement document validation pipeline
+- [x] Implement document validation pipeline
 - [ ] Improve preprocessing for OCR
 - [ ] Improve document type detection
-- [ ] Add validation findings to screening result
+- [x] Add validation findings to screening result
 
 ## Day 6
 

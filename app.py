@@ -303,8 +303,16 @@ def page_screening() -> None:
                     prep = preprocessor.preprocess(img_array)
 
                     # 2. OCR
+                    # Use grayscale (not threshold) image — EasyOCR works
+                    # poorly on hard-binarised images because thresholding
+                    # destroys the gradient information its models need.
                     st.write("📝 Extracting text (OCR)…")
-                    ocr_result = ocr_engine.extract_text(prep.get("processed", img_array))
+                    ocr_image = (
+                        prep.get("grayscale")       # best: denoised grayscale
+                        if prep.get("grayscale") is not None
+                        else prep.get("processed", img_array)
+                    )
+                    ocr_result = ocr_engine.extract_text(ocr_image)
 
                     # 3. Document detection
                     st.write("🔍 Detecting document type…")
@@ -469,13 +477,27 @@ def _render_results(
                 st.caption(f"**{step['name'].title()}**")
                 st.image(np_image_to_pil(step.get("image")), caption=step["description"], use_container_width=True)
 
-    with st.expander("📝 OCR Results", expanded=False):
+    with st.expander("📝 OCR Results", expanded=True):
+        ocr_status = ocr_result.get("status", "unknown")
         ocr_text = ocr_result.get("text", "")
-        if ocr_text:
-            st.text_area("Extracted Text", ocr_text, height=120, disabled=True)
-            st.caption(f"Confidence: {ocr_result.get('confidence', 0):.0%} · Engine: {ocr_result.get('engine', 'N/A')}")
+
+        if ocr_status == "success" and ocr_text:
+            st.text_area("Extracted Text", ocr_text, height=150, disabled=True)
+            ocr_conf = ocr_result.get("confidence", 0.0)
+            n_regions = len(ocr_result.get("details", []))
+            st.caption(
+                f"Confidence: {ocr_conf:.0%} · "
+                f"Regions: {n_regions} · "
+                f"Engine: {ocr_result.get('engine', 'N/A')}"
+            )
+        elif ocr_status == "no_text":
+            msg = ocr_result.get("message", "No readable text was detected in this image.")
+            st.warning(f"📭 {msg}")
+        elif ocr_status == "error":
+            msg = ocr_result.get("message", "An error occurred during text extraction.")
+            st.error(f"❌ OCR Error: {msg}")
         else:
-            st.info("No text extracted. OCR module may be pending implementation.")
+            st.info(f"OCR returned status: {ocr_status}.")
 
     # ── Row 3: Extracted fields ────────────────────────────────────────────
     st.markdown('<div class="result-section">', unsafe_allow_html=True)
@@ -496,20 +518,44 @@ def _render_results(
             field_data.append({"Field": label, "Value": masked})
         st.table(field_data)
     else:
-        st.info("No fields extracted yet. Field extractor module is pending implementation.")
+        st.info("No identity fields were extracted. The document may be unrecognised or OCR text was insufficient.")
     st.markdown(f"Extracted **{extract_result.get('extraction_count', 0)}** / **{extract_result.get('total_fields', 0)}** defined fields.")
     st.markdown("</div>", unsafe_allow_html=True)
 
     # ── Row 4: Validation checks ───────────────────────────────────────────
     st.markdown('<div class="result-section">', unsafe_allow_html=True)
     st.markdown("#### ✅ Validation Checks")
+    valid_status = valid_result.get("status", "")
     checks = valid_result.get("checks", [])
-    if checks:
+
+    if valid_status == "error" and not checks:
+        findings = valid_result.get("findings", [])
+        if findings:
+            for f in findings:
+                st.warning(f)
+        else:
+            st.info("No validation checks could be performed.")
+    elif checks:
+        # Display as a table
+        check_data = []
         for chk in checks:
             icon = "✅" if chk.get("passed") else "❌"
-            st.markdown(f"{icon} **{chk.get('check_name', chk.get('field', ''))}** — {chk.get('message', '')}")
+            check_data.append({
+                "Check": chk.get("check_name", chk.get("field", "")),
+                "Result": f"{icon} {'Passed' if chk.get('passed') else 'Failed'}",
+                "Details": chk.get("message", ""),
+            })
+        st.table(check_data)
+
+        # Show findings
+        findings = valid_result.get("findings", [])
+        if findings:
+            st.markdown("**Validation Findings:**")
+            for f in findings:
+                st.markdown(f"- {f}")
     else:
-        st.info("No validation checks available yet. Validator module is pending implementation.")
+        st.info("No validation checks were performed.")
+
     vc = valid_result.get("valid_count", 0)
     tc = valid_result.get("total_count", 0)
     st.caption(f"Passed: {vc}/{tc}")
@@ -640,7 +686,7 @@ def page_about() -> None:
     tech_data = [
         {"Component": "UI Framework", "Technology": "Streamlit"},
         {"Component": "Image Processing", "Technology": "OpenCV"},
-        {"Component": "OCR Engine", "Technology": "EasyOCR (pending integration)"},
+        {"Component": "OCR Engine", "Technology": "EasyOCR"},
         {"Component": "Database", "Technology": "SQLite"},
         {"Component": "ML/Validation", "Technology": "scikit‑learn, regex, Verhoeff checksum"},
         {"Component": "Language", "Technology": "Python 3.11+"},

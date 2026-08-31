@@ -77,19 +77,21 @@ class TestFieldExtractor:
         assert result["total_fields"] == 0
 
 
-class TestDocumentValidatorStub:
+class TestDocumentValidator:
     def test_init(self) -> None:
         validator = DocumentValidator()
         assert validator is not None
 
     def test_validate_returns_expected_keys(self) -> None:
         validator = DocumentValidator()
-        result = validator.validate({}, "aadhaar")
+        fields = {"name": {"value": "Test", "confidence": 0.7, "label": "Name"}}
+        result = validator.validate(fields, "aadhaar")
         assert isinstance(result, dict)
         assert "checks" in result
         assert "valid_count" in result
         assert "total_count" in result
         assert "all_passed" in result
+        assert result["status"] in ("success", "partial", "failed", "error")
 
 
 class TestTamperingAnalyzerStub:

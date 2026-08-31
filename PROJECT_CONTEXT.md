@@ -14,15 +14,16 @@ or whether a document is definitively fake.
 
 ## Current Development Stage
 
-PHASE 2 COMPLETE — OCR, DOCUMENT DETECTION, FIELD EXTRACTION
+PHASE 3 COMPLETE — OCR, DETECTION, EXTRACTION, VALIDATION
 
-The initial skeleton has been extended with three real implementations:
-OCR (EasyOCR wrapper), document type detection (keyword heuristic),
-and field extraction (regex-based).
+Phase 1: Project skeleton and Streamlit MVP.
+Phase 2: EasyOCR integration, document detection, field extraction.
+Phase 2.5: Streamlit OCR display fix (grayscale input, expanded results).
+Phase 3: Document and field validation (Verhoeff, format, dates, required fields).
 
 Current test result:
 
-89 tests passed (37 original + 52 new).
+140 tests passed.
 
 ## What Currently Exists
 
@@ -36,10 +37,14 @@ Current test result:
 - **Document type detector** (keyword-frequency heuristic for Aadhaar,
   PAN, Voter ID)
 - **Field extractor** (regex-based extraction using patterns from config)
+- **Document validator** (required fields, format checks, Verhoeff
+  checksum for Aadhaar, date validation)
+- **Streamlit OCR display** (grayscale image input, expanded results,
+  status/error handling)
+- **Streamlit validation display** (check results table, findings list)
 
 ### Modules still in stub form:
 
-- Document validation (validators.py)
 - Tampering analysis (tampering.py)
 - Cross-document consistency (consistency.py)
 - Risk scoring (scoring.py)
@@ -150,19 +155,70 @@ Project has commits and is synced.
 
 ## Current Test Status
 
-89/89 tests passed.
+140/140 tests passed.
 
 - tests/test_db.py — 10 tests (database)
 - tests/test_preprocessing.py — 11 tests (image preprocessing)
-- tests/test_validators.py — 16 tests (interface contracts, 3 updated + 4 stub)
+- tests/test_validators.py — 16 tests (interface contracts, 2 updated + 4 stub)
 - tests/test_ocr.py — 14 tests (OCR wrapper, mocked)
 - tests/test_detector.py — 17 tests (document detection)
 - tests/test_extractor.py — 21 tests (field extraction)
+- tests/test_document_validator.py — 48 tests (Phase 3 validation)
+- tests/test_integration.py — 3 tests (full pipeline integration)
 
 All OCR tests use mocked easyocr.Reader. No model downloads required
 to run the test suite. No internet access required.
 
+A separate manual test script (tests/manual_ocr_test.py) tests the
+full pipeline with real EasyOCR, including validation.
+
+## Implementation Details — Phase 2.5
+
+### Streamlit OCR UI Integration (app.py)
+
+- Changed OCR input from binary-threshold image to grayscale for EasyOCR.
+  Thresholding destroys gradient information that EasyOCR models need.
+- Expanded OCR results section by default (was collapsed).
+- Added proper status handling (success, no_text, error) in display.
+- Added per-region confidence and count display.
+- Updated stale "pending implementation" messages.
+
+## Implementation Details — Phase 3
+
+### Document Validator (src/documents/validators.py)
+
+- Replaced 50-line stub with 484-line full implementation.
+- Required-field presence checks driven by config.py `required` flags.
+- Format validation using config.py `pattern` regex values.
+- Aadhaar Verhoeff checksum validation (structural only — does NOT
+  prove the number exists or belongs to a person).
+- Date validation: format parsing (DD/MM/YYYY, DD-MM-YYYY) and
+  plausibility checks (year range 1900–current).
+- Input normalization: space-stripping for Aadhaar, uppercasing for PAN/EPIC.
+- Edge-case handling: None input, empty fields, unknown document type,
+  raw string values, empty string values.
+- Return schema preserves backward compatibility: checks, valid_count,
+  total_count, all_passed, status, plus new fields: findings, document_type.
+- Status values: success, partial, failed, error.
+- Language: uses "structural validation", "suspicious indicator",
+  "human review recommended" — never claims fraud or legal determination.
+
+### Verhoeff Algorithm
+
+- Implemented verhoeff_validate() and verhoeff_generate() functions.
+- Standard Verhoeff tables (_VERHOEFF_D, _VERHOEFF_P, _VERHOEFF_INV).
+- Detects single-digit substitution and transposition errors.
+- A valid checksum only proves structural consistency, NOT that the
+  Aadhaar number exists in any government database.
+
+### Streamlit Validation Display (app.py)
+
+- Validation results shown in a table with Check/Result/Details columns.
+- Validation findings displayed as a bullet list.
+- Handles error/empty/no-check states gracefully.
+- Shows pass/fail count caption.
+
 ## Next Major Development Task
 
-Implement document validation (Verhoeff checksum for Aadhaar, format
-checks for PAN and Voter ID) — TODO Day 4.
+Implement tampering/anomaly analysis (tampering.py) — explainable
+OpenCV-based image analysis heuristics.

@@ -1,5 +1,87 @@
 # CHANGELOG
 
+## 2026-08-31
+
+### Phase 3 — Document & Field Validation
+
+Replaced the DocumentValidator stub with a full implementation.
+
+Completed:
+
+- Document validator (src/documents/validators.py)
+  - Required-field presence checks driven by config.py
+  - Format validation using config.py regex patterns
+  - Aadhaar Verhoeff checksum validation (structural only)
+  - Date validation: DD/MM/YYYY and DD-MM-YYYY, plausibility checks
+  - Input normalization: space-stripping for Aadhaar, uppercasing for PAN/EPIC
+  - Edge-case handling: None, empty, unknown type, raw string values
+  - Backward-compatible return schema: checks, valid_count, total_count,
+    all_passed, status; new fields: findings, document_type
+  - Status values: success, partial, failed, error
+- Verhoeff algorithm (verhoeff_validate, verhoeff_generate)
+  - Standard lookup-table implementation
+  - Detects single-digit substitution and transposition errors
+- Streamlit validation display (app.py)
+  - Validation results shown in a table (Check/Result/Details)
+  - Findings displayed as a bullet list
+  - Handles error/empty/no-check states
+
+Test suite:
+
+- 48 new document validator tests (tests/test_document_validator.py)
+  - Verhoeff algorithm: generate, validate, invalid, spaces, non-digit, empty
+  - General: init, unknown type, empty fields, None, return schema, backward compat
+  - Aadhaar: required fields, format (valid/invalid/spaces/letters), checksum
+    (valid/invalid), no authenticity claim in messages
+  - PAN: valid, invalid (all digits, too short), lowercase normalization, no checksum
+  - Voter ID: valid, invalid format, too short, no checksum
+  - Dates: valid, dash format, impossible month/day, malformed, implausible year
+  - Edge cases: empty value, raw string, findings type, status values
+- Integration test updated with validation step
+- Manual OCR test updated with validation step
+- Total: 140/140 passed (92 original preserved + 48 new)
+
+All test data is synthetic. No real identity numbers used.
+
+Technical decisions:
+
+- Validation results are deterministic structural indicators, NOT probabilities.
+- The validator never claims fraud, legal determination, or document authenticity.
+- Verhoeff checksum validity only proves structural consistency — it does NOT
+  prove the Aadhaar number exists or belongs to any person.
+- Return schema preserves backward compatibility with Phase 1 stub contract.
+
+### Remaining stubs:
+
+- tampering analysis (tampering.py)
+- cross-document consistency (consistency.py)
+- risk scoring (scoring.py)
+
+### Next task:
+
+Implement tampering/anomaly analysis using explainable OpenCV techniques.
+
+---
+
+## 2026-08-30
+
+### Phase 2.5 — Streamlit OCR UI Integration Fix
+
+Fixed OCR pipeline integration in Streamlit and improved result display.
+
+Completed:
+
+- Changed OCR input from threshold image to grayscale (EasyOCR needs gradients)
+- Expanded OCR results section by default
+- Added status handling (success, no_text, error) in OCR display
+- Added region count and engine info to OCR caption
+- Updated stale "pending implementation" messages
+- Added integration tests (3 tests with mocked EasyOCR)
+- Created manual real-EasyOCR test script (tests/manual_ocr_test.py)
+- Real EasyOCR tested successfully on synthetic Aadhaar image
+
+---
+
 ## 2026-08-29
 
 ### Phase 2 — OCR, Document Detection, Field Extraction
