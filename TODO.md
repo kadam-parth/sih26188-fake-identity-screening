@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-PHASE 3 COMPLETE — OCR, DETECTION, EXTRACTION, VALIDATION
+PHASE 4 COMPLETE — OCR, DETECTION, EXTRACTION, VALIDATION, ANOMALY ANALYSIS
 
 ## Completed
 
@@ -39,6 +39,13 @@ PHASE 3 COMPLETE — OCR, DETECTION, EXTRACTION, VALIDATION
 - [x] Add validation step to integration test
 - [x] Add validation display to Streamlit UI (table + findings)
 - [x] Update manual OCR test with validation step
+- [x] Implement ELA (Error Level Analysis) — heuristic, not ML
+- [x] Implement edge density analysis
+- [x] Implement high-frequency noise analysis
+- [x] Add anomaly display to Streamlit UI (indicator table, ELA image)
+- [x] Add tampering configuration to config.py
+- [x] Add comprehensive tampering tests (33 tests, all synthetic data)
+- [x] Update tampering interface contract tests
 
 ## Day 2 (remaining)
 
@@ -68,12 +75,12 @@ PHASE 3 COMPLETE — OCR, DETECTION, EXTRACTION, VALIDATION
 - [ ] Improve document type detection
 - [x] Add validation findings to screening result
 
-## Day 6
+## Day 6 (complete)
 
-- [ ] Implement image anomaly/tampering analysis
-- [ ] Start with explainable OpenCV-based techniques
-- [ ] Avoid claiming tampering detection is definitive
-- [ ] Add tests
+- [x] Implement image anomaly/tampering analysis
+- [x] Start with explainable OpenCV-based techniques
+- [x] Avoid claiming tampering detection is definitive
+- [x] Add tests
 
 ## Day 7
 

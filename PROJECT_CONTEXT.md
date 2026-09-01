@@ -14,16 +14,17 @@ or whether a document is definitively fake.
 
 ## Current Development Stage
 
-PHASE 3 COMPLETE — OCR, DETECTION, EXTRACTION, VALIDATION
+PHASE 4 COMPLETE — OCR, DETECTION, EXTRACTION, VALIDATION, ANOMALY ANALYSIS
 
 Phase 1: Project skeleton and Streamlit MVP.
 Phase 2: EasyOCR integration, document detection, field extraction.
 Phase 2.5: Streamlit OCR display fix (grayscale input, expanded results).
 Phase 3: Document and field validation (Verhoeff, format, dates, required fields).
+Phase 4: Image tampering/anomaly analysis (ELA, edge density, noise analysis).
 
 Current test result:
 
-140 tests passed.
+173 tests passed.
 
 ## What Currently Exists
 
@@ -42,10 +43,12 @@ Current test result:
 - **Streamlit OCR display** (grayscale image input, expanded results,
   status/error handling)
 - **Streamlit validation display** (check results table, findings list)
+- **Image anomaly analyzer** (ELA, edge density, noise analysis — heuristic,
+  not ML)
+- **Streamlit anomaly display** (indicator table, ELA image, anomaly score)
 
 ### Modules still in stub form:
 
-- Tampering analysis (tampering.py)
 - Cross-document consistency (consistency.py)
 - Risk scoring (scoring.py)
 
@@ -155,16 +158,17 @@ Project has commits and is synced.
 
 ## Current Test Status
 
-140/140 tests passed.
+173/173 tests passed.
 
 - tests/test_db.py — 10 tests (database)
 - tests/test_preprocessing.py — 11 tests (image preprocessing)
-- tests/test_validators.py — 16 tests (interface contracts, 2 updated + 4 stub)
+- tests/test_validators.py — 16 tests (interface contracts, 2 updated + 3 stub)
 - tests/test_ocr.py — 14 tests (OCR wrapper, mocked)
 - tests/test_detector.py — 17 tests (document detection)
 - tests/test_extractor.py — 21 tests (field extraction)
 - tests/test_document_validator.py — 48 tests (Phase 3 validation)
 - tests/test_integration.py — 3 tests (full pipeline integration)
+- tests/test_tampering.py — 33 tests (Phase 4 tampering/anomaly)
 
 All OCR tests use mocked easyocr.Reader. No model downloads required
 to run the test suite. No internet access required.
@@ -218,7 +222,52 @@ full pipeline with real EasyOCR, including validation.
 - Handles error/empty/no-check states gracefully.
 - Shows pass/fail count caption.
 
+## Implementation Details — Phase 4
+
+### Image Anomaly Analyzer (src/vision/tampering.py)
+
+- Replaced 50-line stub with full implementation (~320 lines).
+- Uses OpenCV-based heuristics — NOT a trained ML model.
+- Three analysis techniques:
+  1. Error Level Analysis (ELA): recompresses image as JPEG at configurable
+     quality, computes pixel-level difference, amplifies and visualizes.
+  2. Edge Density: Canny edge detection, measures ratio of edge to total
+     pixels, flags unusually low or high values.
+  3. High-Frequency Noise: subtracts Gaussian-blurred version to isolate
+     noise, measures std deviation, flags abnormal levels.
+- ELA is performed entirely in memory (no disk I/O for temporary files).
+- Handles None, empty, too-small, grayscale, BGRA, and invalid input.
+- Return schema preserves backward compatibility: checks, ela_image,
+  overall_suspicious, suspicion_score, status.
+- Added fields: method ("heuristic_cv"), message.
+- Each check includes: name, description, result, suspicious, details,
+  and optional metrics dict.
+
+### Heuristic Anomaly Score
+
+- Score = suspicious_check_count / total_checks (deterministic).
+- This is NOT a probability of fraud or a calibrated confidence value.
+- Overall_suspicious is true when score >= configurable threshold (0.4).
+- Score calculation is transparent and explainable.
+
+### Configuration (src/config.py)
+
+- All thresholds centralized in TAMPERING dict:
+  ela_jpeg_quality, ela_scale_factor, ela_suspicious_threshold,
+  edge_density_low, edge_density_high, noise_std_suspicious,
+  min_image_dimension, overall_suspicious_threshold.
+
+### Streamlit Anomaly Display (app.py)
+
+- Indicator results shown in table with Indicator/Status/Details columns.
+- ELA visualization displayed with descriptive caption.
+- Overall status shown as success/warning message.
+- Shows heuristic anomaly score, method, and suspicious status.
+- Updated section title from "Tampering / Anomaly Analysis" to
+  "Image Anomaly Analysis".
+- Handles error and empty states gracefully.
+
 ## Next Major Development Task
 
-Implement tampering/anomaly analysis (tampering.py) — explainable
-OpenCV-based image analysis heuristics.
+Implement cross-document consistency checking (consistency.py) and/or
+rule-based risk scoring (scoring.py).

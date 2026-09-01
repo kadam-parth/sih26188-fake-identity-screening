@@ -94,7 +94,7 @@ class TestDocumentValidator:
         assert result["status"] in ("success", "partial", "failed", "error")
 
 
-class TestTamperingAnalyzerStub:
+class TestTamperingAnalyzer:
     def test_init(self) -> None:
         analyzer = TamperingAnalyzer()
         assert analyzer is not None
@@ -108,6 +108,7 @@ class TestTamperingAnalyzerStub:
         assert "ela_image" in result
         assert "overall_suspicious" in result
         assert "suspicion_score" in result
+        assert result["status"] in ("success", "error")
 
 
 class TestConsistencyCheckerStub:

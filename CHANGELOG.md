@@ -1,5 +1,70 @@
 # CHANGELOG
 
+## 2026-09-01
+
+### Phase 4 — Image Tampering / Anomaly Analysis
+
+Replaced the TamperingAnalyzer stub with a full OpenCV-based implementation.
+
+Completed:
+
+- Image anomaly analyzer (src/vision/tampering.py)
+  - Error Level Analysis (ELA): JPEG recompression comparison in memory
+  - Edge density analysis: Canny-based edge ratio measurement
+  - High-frequency noise analysis: Gaussian blur subtraction
+  - All techniques are heuristic — NOT trained ML models
+  - Handles None, empty, too-small, grayscale, BGRA images
+  - Returns backward-compatible schema: checks, ela_image,
+    overall_suspicious, suspicion_score, status
+  - New fields: method ("heuristic_cv"), message
+  - Each check includes metrics dict for transparency
+- Tampering configuration (src/config.py TAMPERING dict)
+  - Centralized thresholds: ELA quality/scale/threshold,
+    edge density range, noise threshold, min dimension, overall threshold
+- Streamlit anomaly display (app.py)
+  - Indicator table with Status/Details columns
+  - ELA visualization with descriptive caption
+  - Overall suspicious status as success/warning message
+  - Heuristic anomaly score and method display
+
+Test suite:
+
+- 33 new tampering tests (tests/test_tampering.py)
+  - Init, config
+  - Input handling: None, empty, too small, invalid type
+  - Valid images: color, grayscale, large, BGRA
+  - Return schema validation
+  - ELA: shape, dtype, determinism, metrics
+  - Edge density: presence, blank image detection, metrics
+  - Noise: presence, clean image, noisy image detection
+  - Synthetic modification comparison
+  - Score calculation: range, edge cases, partial
+  - Honesty language: no definitive fraud claims, guarantee disclaimer
+- Updated interface contract test (TestTamperingAnalyzer)
+- Total: 173/173 passed (140 preserved + 33 new)
+
+All test data is synthetic. No real identity documents used.
+
+Technical decisions:
+
+- ELA, edge density, and noise analysis are heuristic CV techniques,
+  NOT trained ML models.
+- Anomaly score = suspicious_count / total_checks — deterministic,
+  not a fraud probability.
+- Results are screening indicators, not proof of tampering.
+- "Does not guarantee document authenticity" disclaimer on clean results.
+
+### Remaining stubs:
+
+- cross-document consistency (consistency.py)
+- risk scoring (scoring.py)
+
+### Next task:
+
+Implement cross-document consistency and/or risk scoring.
+
+---
+
 ## 2026-08-31
 
 ### Phase 3 — Document & Field Validation

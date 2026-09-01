@@ -325,10 +325,10 @@ The following modules are fully implemented:
 - src/documents/detector.py — keyword-frequency document type heuristic
 - src/documents/extractor.py — regex-based field extraction
 - src/documents/validators.py — document field validation (Verhoeff, format, dates)
+- src/vision/tampering.py — image anomaly analysis (ELA, edge density, noise — heuristic CV)
 
 The following modules are still stubs:
 
-- src/vision/tampering.py — image anomaly/tampering analysis
 - src/verification/consistency.py — cross-document consistency
 - src/risk/scoring.py — weighted risk scoring engine
 

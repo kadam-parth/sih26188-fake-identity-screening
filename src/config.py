@@ -39,6 +39,18 @@ PREPROCESSING = {
 OCR_LANGUAGES: list[str] = ["en", "hi"]  # English + Hindi for Indian documents
 OCR_CONFIDENCE_THRESHOLD: float = 0.3
 
+# ── Tampering / Anomaly Analysis ─────────────────────────────────────────────
+TAMPERING = {
+    "ela_jpeg_quality": 90,           # JPEG quality for ELA recompression
+    "ela_scale_factor": 20,           # Amplification factor for ELA diff
+    "ela_suspicious_threshold": 40.0, # Mean ELA value above which region is suspicious
+    "edge_density_low": 0.02,         # Below this = suspiciously low edge content
+    "edge_density_high": 0.40,        # Above this = suspiciously high edge content
+    "noise_std_suspicious": 35.0,     # High-frequency noise std above which = suspicious
+    "min_image_dimension": 20,        # Minimum width/height to attempt analysis
+    "overall_suspicious_threshold": 0.4,  # Heuristic score above which = suspicious
+}
+
 # ── Document Type Definitions ────────────────────────────────────────────────
 DOCUMENT_TYPES: dict = {
     "aadhaar": {

@@ -320,3 +320,66 @@ EasyOCR works poorly on hard-binarised images because thresholding destroys
 the gradient information its internal models need. Grayscale preserves
 enough visual structure for reliable text recognition while still
 benefiting from denoising.
+---
+
+## Decision 021 - ELA is a Heuristic Indicator
+
+### Decision
+
+Error Level Analysis (ELA) is implemented as a heuristic screening indicator.
+A high ELA response does NOT prove image editing. Normal images may show
+elevated ELA values due to JPEG compression artifacts, edges, textures,
+or format conversion.
+
+### Reason
+
+ELA measures compression inconsistency, which correlates with but does not
+prove image manipulation. Presenting ELA as definitive proof would be
+technically dishonest. Results must be accompanied by disclaimers and
+recommended for human review.
+
+---
+
+## Decision 022 - Anomaly Score is Not a Fraud Probability
+
+### Decision
+
+The heuristic anomaly score is calculated as suspicious_count / total_checks.
+It is a deterministic ratio, NOT a calibrated probability of fraud.
+
+### Reason
+
+The score aggregates binary check results. It has no statistical calibration,
+training data, or validation against a ground-truth dataset. Calling it a
+probability would be misleading. It is described as a "heuristic anomaly
+score" throughout the codebase and documentation.
+
+---
+
+## Decision 023 - No External Verification for Tampering
+
+### Decision
+
+Image analysis is performed locally using OpenCV. No images are sent to
+external APIs, cloud services, or third-party verification endpoints.
+
+### Reason
+
+Identity documents are sensitive. Local processing avoids privacy risks
+from transmitting document images over the network. This is consistent
+with the project's local-first philosophy (Decision 002).
+
+---
+
+## Decision 024 - Tampering Thresholds in Config
+
+### Decision
+
+All tampering analysis thresholds are centralized in the TAMPERING dict
+in src/config.py rather than hardcoded in the analyzer.
+
+### Reason
+
+Centralizing thresholds makes them discoverable, adjustable, and
+documentable without modifying analysis logic. This follows the same
+pattern used for OCR and preprocessing configuration.

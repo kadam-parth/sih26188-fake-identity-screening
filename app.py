@@ -563,24 +563,44 @@ def _render_results(
 
     # ── Row 5: Tampering analysis ──────────────────────────────────────────
     st.markdown('<div class="result-section">', unsafe_allow_html=True)
-    st.markdown("#### 🔬 Tampering / Anomaly Analysis")
+    st.markdown("#### 🔬 Image Anomaly Analysis")
+    tamp_status = tamp_result.get("status", "")
     tamp_checks = tamp_result.get("checks", [])
-    if tamp_checks:
+
+    if tamp_status == "error" and not tamp_checks:
+        st.warning(f"⚠️ {tamp_result.get('message', 'Analysis could not be performed.')}")
+    elif tamp_checks:
+        # Show checks in a table
+        check_data = []
         for tc_item in tamp_checks:
             icon = "🚨" if tc_item.get("suspicious") else "✅"
-            st.markdown(
-                f"{icon} **{tc_item.get('name', '')}** — {tc_item.get('result', tc_item.get('description', ''))}"
-            )
+            check_data.append({
+                "Indicator": tc_item.get("name", ""),
+                "Status": f"{icon} {'Suspicious' if tc_item.get('suspicious') else 'Normal'}",
+                "Details": tc_item.get("result", tc_item.get("description", "")),
+            })
+        st.table(check_data)
+
         if tamp_result.get("ela_image") is not None:
             st.image(
                 np_image_to_pil(tamp_result["ela_image"]),
-                caption="Error Level Analysis (ELA)",
+                caption="Error Level Analysis (ELA) — brighter regions indicate higher compression difference",
                 use_container_width=True,
             )
+
+        # Show overall message
+        if tamp_result.get("overall_suspicious"):
+            st.warning(f"⚠️ {tamp_result.get('message', '')}")
+        else:
+            st.success(f"✅ {tamp_result.get('message', '')}")
     else:
-        st.info("No tampering analysis available yet. Tampering module is pending implementation.")
+        st.info("No image anomaly checks were performed.")
+
+    score = tamp_result.get("suspicion_score", 0.0)
+    method = tamp_result.get("method", "N/A")
     st.caption(
-        f"Suspicion score: {tamp_result.get('suspicion_score', 0.0):.2f} · "
+        f"Heuristic anomaly score: {score:.2f} · "
+        f"Method: {method} · "
         f"Overall suspicious: {'Yes' if tamp_result.get('overall_suspicious') else 'No'}"
     )
     st.markdown("</div>", unsafe_allow_html=True)
