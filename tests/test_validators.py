@@ -111,7 +111,7 @@ class TestTamperingAnalyzer:
         assert result["status"] in ("success", "error")
 
 
-class TestConsistencyCheckerStub:
+class TestConsistencyChecker:
     def test_init(self) -> None:
         checker = ConsistencyChecker()
         assert checker is not None
@@ -126,9 +126,10 @@ class TestConsistencyCheckerStub:
         checker = ConsistencyChecker()
         result = checker.check([])
         assert result["consistent"] is True
+        assert result["status"] == "insufficient_documents"
 
 
-class TestRiskScorerStub:
+class TestRiskScorer:
     def test_init(self) -> None:
         scorer = RiskScorer()
         assert scorer is not None
@@ -143,4 +144,8 @@ class TestRiskScorerStub:
         assert "score" in result
         assert "level" in result
         assert "recommendation" in result
+        assert "factors" in result
+        assert "indicators" in result
         assert result["level"] in ("LOW", "MEDIUM", "HIGH")
+        assert result["status"] == "success"
+

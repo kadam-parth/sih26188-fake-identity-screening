@@ -326,12 +326,10 @@ The following modules are fully implemented:
 - src/documents/extractor.py — regex-based field extraction
 - src/documents/validators.py — document field validation (Verhoeff, format, dates)
 - src/vision/tampering.py — image anomaly analysis (ELA, edge density, noise — heuristic CV)
+- src/verification/consistency.py — cross-document consistency (normalized name/DOB comparison)
+- src/risk/scoring.py — weighted rule-based risk scoring engine
 
-The following modules are still stubs:
-
-- src/verification/consistency.py — cross-document consistency
-- src/risk/scoring.py — weighted risk scoring engine
+All core analysis modules are now implemented. No stubs remain.
 
 Future agents must inspect actual source code before claiming functionality
 is implemented.
-

@@ -335,87 +335,117 @@ def page_screening() -> None:
                     tampering = TamperingAnalyzer()
                     tamp_result = tampering.analyze(img_array)
 
-                    # 7. Risk scoring
-                    st.write("⚖️ Calculating risk score…")
-                    scorer = RiskScorer()
-                    risk_result = scorer.calculate(valid_result, tamp_result)
+                    # Risk scoring deferred until after consistency check
+                    risk_result = None
 
                     status_bar.update(label="✅ Analysis complete", state="complete")
 
-                # Collect module statuses
-                module_statuses = {
-                    "OCR Engine": ocr_result.get("status", "unknown"),
-                    "Document Detector": detect_result.get("status", "unknown"),
-                    "Field Extractor": extract_result.get("status", "unknown"),
-                    "Field Validator": valid_result.get("status", "unknown"),
-                    "Tampering Analyzer": tamp_result.get("status", "unknown"),
-                    "Risk Scorer": risk_result.get("status", "unknown"),
-                }
-
-                # Check if any modules are stubs
-                stub_modules = [k for k, v in module_statuses.items() if v == "not_implemented"]
-                if stub_modules:
-                    st.warning(
-                        f"⏳ **{len(stub_modules)} module(s) pending implementation:** "
-                        + ", ".join(stub_modules)
-                        + ". Results below reflect only active modules."
-                    )
-
-                # ── Display results ────────────────────────────────────────
-                _render_results(
-                    prep=prep,
-                    ocr_result=ocr_result,
-                    detect_result=detect_result,
-                    extract_result=extract_result,
-                    valid_result=valid_result,
-                    tamp_result=tamp_result,
-                    risk_result=risk_result,
-                    module_statuses=module_statuses,
-                    doc_type=doc_type,
-                )
-
-                # ── Save to DB ─────────────────────────────────────────────
-                level = risk_result.get("level", "LOW")
-                screening_record = {
-                    "timestamp": format_timestamp(),
-                    "document_type": doc_type,
-                    "document_name": detect_result.get("document_name", "Unknown"),
-                    "risk_score": risk_result.get("score", 0.0),
-                    "risk_level": level,
-                    "recommendation": risk_result.get("recommendation", ""),
-                    "findings": {
-                        "ocr": {"status": ocr_result.get("status"), "confidence": ocr_result.get("confidence")},
-                        "detection": {"type": doc_type, "confidence": detect_result.get("confidence")},
-                        "extraction": {"count": extract_result.get("extraction_count"), "total": extract_result.get("total_fields")},
-                        "validation": {"valid": valid_result.get("valid_count"), "total": valid_result.get("total_count"), "checks": valid_result.get("checks", [])},
-                        "tampering": {"suspicious": tamp_result.get("overall_suspicious"), "score": tamp_result.get("suspicion_score"), "checks": tamp_result.get("checks", [])},
-                        "risk": {"score": risk_result.get("score"), "level": level, "factors": risk_result.get("factors", [])},
-                    },
-                    "file_hash": fhash,
-                }
-                sid = db.save_screening(screening_record)
-                if sid and sid > 0:
-                    st.caption(f"💾 Screening saved (ID: {sid})")
-
+                # Collect per-document results for consistency
                 all_doc_results.append({
                     "document_type": doc_type,
                     "fields": extract_result.get("fields", {}),
                     "validation": valid_result,
+                    "tampering": tamp_result,
+                    # These are needed for rendering and DB save
+                    "_prep": prep,
+                    "_ocr": ocr_result,
+                    "_detect": detect_result,
+                    "_extract": extract_result,
+                    "_valid": valid_result,
+                    "_tamp": tamp_result,
+                    "_doc_type": doc_type,
+                    "_fhash": fhash,
                 })
 
             except Exception as exc:
                 logger.exception("Error processing %s", uf.name)
                 st.error(f"❌ Error processing **{uf.name}**: {exc}")
 
-        # ── Cross‑document consistency (if multiple) ───────────────────────
-        if len(all_doc_results) >= 2:
-            st.markdown("---\n### 🔗 Cross‑Document Consistency Check")
-            checker = ConsistencyChecker()
-            consistency = checker.check(all_doc_results)
-            if consistency.get("status") == "not_implemented":
-                st.info("⏳ Cross‑document consistency checker not yet implemented.")
+        # ── Cross-document consistency ──────────────────────────────────
+        checker = ConsistencyChecker()
+        consistency_result = checker.check(all_doc_results)
+
+        # ── Risk scoring + display per document ─────────────────────────
+        scorer = RiskScorer()
+
+        for doc_data in all_doc_results:
+            valid_result = doc_data["_valid"]
+            tamp_result = doc_data["_tamp"]
+            risk_result = scorer.calculate(
+                valid_result, tamp_result, consistency_result,
+            )
+
+            module_statuses = {
+                "OCR Engine": doc_data["_ocr"].get("status", "unknown"),
+                "Document Detector": doc_data["_detect"].get("status", "unknown"),
+                "Field Extractor": doc_data["_extract"].get("status", "unknown"),
+                "Field Validator": valid_result.get("status", "unknown"),
+                "Tampering Analyzer": tamp_result.get("status", "unknown"),
+                "Risk Scorer": risk_result.get("status", "unknown"),
+            }
+
+            # Display results for this document
+            try:
+                _render_results(
+                    prep=doc_data["_prep"],
+                    ocr_result=doc_data["_ocr"],
+                    detect_result=doc_data["_detect"],
+                    extract_result=doc_data["_extract"],
+                    valid_result=valid_result,
+                    tamp_result=tamp_result,
+                    risk_result=risk_result,
+                    module_statuses=module_statuses,
+                    doc_type=doc_data["_doc_type"],
+                )
+            except Exception as render_exc:
+                logger.exception("Error in _render_results")
+                st.error(f"❌ Error rendering results: {render_exc}")
+
+            # Save to DB
+            level = risk_result.get("level", "LOW")
+            screening_record = {
+                "timestamp": format_timestamp(),
+                "document_type": doc_data["_doc_type"],
+                "document_name": doc_data["_detect"].get("document_name", "Unknown"),
+                "risk_score": risk_result.get("score", 0.0),
+                "risk_level": level,
+                "recommendation": risk_result.get("recommendation", ""),
+                "findings": {
+                    "ocr": {"status": doc_data["_ocr"].get("status"), "confidence": doc_data["_ocr"].get("confidence")},
+                    "detection": {"type": doc_data["_doc_type"], "confidence": doc_data["_detect"].get("confidence")},
+                    "extraction": {"count": doc_data["_extract"].get("extraction_count"), "total": doc_data["_extract"].get("total_fields")},
+                    "validation": {"valid": valid_result.get("valid_count"), "total": valid_result.get("total_count"), "checks": valid_result.get("checks", [])},
+                    "tampering": {"suspicious": tamp_result.get("overall_suspicious"), "score": tamp_result.get("suspicion_score"), "checks": tamp_result.get("checks", [])},
+                    "risk": {"score": risk_result.get("score"), "level": level, "factors": risk_result.get("factors", [])},
+                    "consistency": {"status": consistency_result.get("status"), "consistent": consistency_result.get("consistent")},
+                },
+                "file_hash": doc_data["_fhash"],
+            }
+            sid = db.save_screening(screening_record)
+            if sid and sid > 0:
+                st.caption(f"💾 Screening saved (ID: {sid})")
+
+        # ── Cross-document consistency display ──────────────────────────
+        if consistency_result.get("status") == "success":
+            st.markdown("---")
+            st.markdown("### 🔗 Cross-Document Consistency")
+            checks = consistency_result.get("checks", [])
+            if checks:
+                check_data = []
+                for c in checks:
+                    icon = "✅" if c.get("consistent") else "⚠️"
+                    check_data.append({
+                        "Field": c.get("field_label", c.get("field", "")),
+                        "Status": f"{icon} {'Consistent' if c.get('consistent') else 'Mismatch'}",
+                        "Details": c.get("message", ""),
+                    })
+                st.table(check_data)
             else:
-                st.json(consistency)
+                st.info("No comparable fields found across documents.")
+            st.caption(
+                f"Consistency score: {consistency_result.get('consistency_score', 0):.2f} · "
+                f"{consistency_result.get('message', '')}"
+            )
 
 
 def _render_supported_docs_summary() -> None:
@@ -444,16 +474,32 @@ def _render_results(
 ) -> None:
     """Render the full analysis results panel."""
 
+    st.divider()
+    doc_label = doc_type.upper() if doc_type else "UNKNOWN"
+    st.markdown(f"## 📊 Screening Report — {doc_label}")
+
     # ── Row 1: Risk score + Document info ──────────────────────────────────
     col_risk, col_doc = st.columns([1, 2])
 
     with col_risk:
         st.markdown('<div class="result-section">', unsafe_allow_html=True)
-        st.markdown("#### ⚖️ Risk Assessment")
+        st.markdown("#### ⚖️ Screening Assessment")
         score = risk_result.get("score", 0.0)
+        score_pct = risk_result.get("score_pct", round(score * 100))
         level = risk_result.get("level", "LOW")
-        st.metric("Risk Score", f"{score:.2f}")
+        st.metric("Heuristic Score", f"{score_pct} / 100")
         st.markdown(render_risk_badge(level), unsafe_allow_html=True)
+        st.caption("Heuristic screening score — not a probability of fraud")
+
+        # Show contributing indicators
+        indicators = risk_result.get("indicators", [])
+        if indicators:
+            st.markdown("**Risk Indicators:**")
+            for ind in indicators:
+                st.markdown(f"- {ind}")
+        else:
+            st.markdown("**No suspicious indicators identified.**")
+
         st.markdown(f"**Recommendation:** {risk_result.get('recommendation', 'N/A')}")
         st.markdown("</div>", unsafe_allow_html=True)
 

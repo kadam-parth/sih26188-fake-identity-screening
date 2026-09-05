@@ -2,6 +2,62 @@
 
 ## 2026-09-01
 
+### Phase 5 — Cross-Document Consistency + Risk Scoring
+
+Replaced the last two stubs with full implementations. All core modules
+are now implemented.
+
+Completed:
+
+- Cross-document consistency (src/verification/consistency.py)
+  - Replaced 55-line stub with ~225-line implementation
+  - Normalized name comparison (case, whitespace, punctuation)
+  - Date comparison with multi-format support (DD/MM/YYYY, DD-MM-YYYY,
+    YYYY-MM-DD)
+  - Handles dict-style and string field values
+  - Single-document → "insufficient_documents" (not inconsistent)
+  - Backward-compatible return schema with new fields: compared_count,
+    mismatch_count
+- Rule-based risk scoring (src/risk/scoring.py)
+  - Replaced 59-line stub with ~280-line implementation
+  - Weighted aggregation: validation + tampering + consistency
+  - Uses existing config: RISK_WEIGHTS, RISK_THRESHOLDS, RISK_LEVELS
+  - Redistributes consistency weight when unavailable (single doc)
+  - Explainable: every contribution has category, name, description
+  - Human-readable indicators list
+  - Risk levels: LOW (<=0.3), MEDIUM (0.3-0.6), HIGH (>0.6)
+  - Language: "suspicious indicators", "human review" — never "fraud"
+- Pipeline restructure (app.py)
+  - Risk scoring deferred until after consistency check
+  - Consistency runs on all documents after per-document analysis
+  - Risk scorer receives consistency results
+  - Enhanced "Screening Assessment" display with score/100, indicators,
+    disclaimer
+  - Cross-document consistency table display
+  - DB record includes consistency status
+
+Test suite:
+
+- 22 new consistency tests (tests/test_consistency.py)
+- 21 new risk scoring tests (tests/test_risk_scoring.py)
+- 3 new Phase 5 integration tests (tests/test_integration.py)
+- Updated interface contract tests (all stubs → real)
+- Total: 219/219 passed (173 preserved + 46 new)
+
+All test data is synthetic. No real identity documents used.
+
+Technical decisions:
+
+- Cross-document consistency uses deterministic normalized string comparison,
+  not fuzzy matching or ML.
+- Risk score is a deterministic weighted heuristic, not a trained model or
+  calibrated probability.
+- Missing data (single document, no consistency) does NOT incur penalty.
+  Weight is redistributed to available components.
+- Human review is the final decision point for all risk levels.
+
+---
+
 ### Phase 4 — Image Tampering / Anomaly Analysis
 
 Replaced the TamperingAnalyzer stub with a full OpenCV-based implementation.

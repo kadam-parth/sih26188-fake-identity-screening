@@ -14,17 +14,18 @@ or whether a document is definitively fake.
 
 ## Current Development Stage
 
-PHASE 4 COMPLETE — OCR, DETECTION, EXTRACTION, VALIDATION, ANOMALY ANALYSIS
+PHASE 5 COMPLETE — OCR, DETECTION, EXTRACTION, VALIDATION, ANOMALY, CONSISTENCY, RISK
 
 Phase 1: Project skeleton and Streamlit MVP.
 Phase 2: EasyOCR integration, document detection, field extraction.
 Phase 2.5: Streamlit OCR display fix (grayscale input, expanded results).
 Phase 3: Document and field validation (Verhoeff, format, dates, required fields).
 Phase 4: Image tampering/anomaly analysis (ELA, edge density, noise analysis).
+Phase 5: Cross-document consistency + explainable rule-based risk scoring.
 
 Current test result:
 
-173 tests passed.
+219 tests passed.
 
 ## What Currently Exists
 
@@ -46,14 +47,19 @@ Current test result:
 - **Image anomaly analyzer** (ELA, edge density, noise analysis — heuristic,
   not ML)
 - **Streamlit anomaly display** (indicator table, ELA image, anomaly score)
+- **Cross-document consistency** (normalized name/DOB comparison across
+  document types — deterministic, not ML)
+- **Rule-based risk scoring** (weighted aggregation of validation, tampering,
+  and consistency findings — heuristic, not probability)
+- **Explainable screening report** (risk indicators, score, level,
+  recommendation)
 
-### Modules still in stub form:
+### No modules remain in stub form.
 
-- Cross-document consistency (consistency.py)
-- Risk scoring (scoring.py)
+All core analysis modules are now implemented.
 
 Future AI agents must inspect the actual source code before claiming any
-stub feature is implemented.
+feature is implemented.
 
 ## Implementation Details — Phase 2
 
@@ -158,17 +164,19 @@ Project has commits and is synced.
 
 ## Current Test Status
 
-173/173 tests passed.
+219/219 tests passed.
 
 - tests/test_db.py — 10 tests (database)
 - tests/test_preprocessing.py — 11 tests (image preprocessing)
-- tests/test_validators.py — 16 tests (interface contracts, 2 updated + 3 stub)
+- tests/test_validators.py — 16 tests (interface contracts, all real)
 - tests/test_ocr.py — 14 tests (OCR wrapper, mocked)
 - tests/test_detector.py — 17 tests (document detection)
 - tests/test_extractor.py — 21 tests (field extraction)
 - tests/test_document_validator.py — 48 tests (Phase 3 validation)
-- tests/test_integration.py — 3 tests (full pipeline integration)
+- tests/test_integration.py — 6 tests (full pipeline + Phase 5 integration)
 - tests/test_tampering.py — 33 tests (Phase 4 tampering/anomaly)
+- tests/test_consistency.py — 22 tests (Phase 5 cross-document consistency)
+- tests/test_risk_scoring.py — 21 tests (Phase 5 risk scoring)
 
 All OCR tests use mocked easyocr.Reader. No model downloads required
 to run the test suite. No internet access required.
@@ -267,7 +275,55 @@ full pipeline with real EasyOCR, including validation.
   "Image Anomaly Analysis".
 - Handles error and empty states gracefully.
 
+## Implementation Details — Phase 5
+
+### Cross-Document Consistency (src/verification/consistency.py)
+
+- Replaced 55-line stub with ~225-line full implementation.
+- Deterministic normalized comparison — NOT machine learning.
+- Comparable fields: name, date of birth.
+- Name normalization: lowercase, collapse whitespace, remove common punctuation.
+- Date normalization: supports DD/MM/YYYY, DD-MM-YYYY, YYYY-MM-DD formats.
+- Handles dict-style field values ({value, confidence}) and plain strings.
+- Handles None input, empty list, single document, missing fields, empty values.
+- Single document returns "insufficient_documents" — NOT marked as inconsistent.
+- Return schema: checks, consistent, consistency_score, status, message,
+  compared_count, mismatch_count.
+- Each check: field, field_label, documents_compared, consistent, message, values.
+- Language: "may warrant human review", "does not guarantee authenticity".
+
+### Rule-Based Risk Scoring (src/risk/scoring.py)
+
+- Replaced 59-line stub with ~280-line full implementation.
+- Deterministic weighted rule system — NOT trained ML, NOT probability.
+- Inputs: validation results, tampering results, consistency results.
+- Scoring: sub-scores (0.0-1.0) for validation, tampering, consistency,
+  weighted by config RISK_WEIGHTS and normalized.
+- When consistency data is unavailable, its weight is redistributed to
+  available components.
+- Score range: 0.0-1.0 (also reported as 0-100 integer).
+- Risk levels: LOW (score <= 0.3), MEDIUM (0.3 < score <= 0.6), HIGH (> 0.6).
+- Explainability: every risk contribution has category, name, contribution,
+  description.
+- Human-readable indicators list and recommendation per level.
+- Language: "suspicious indicators", "human review recommended" — never
+  "fraud", "fake", "forged", "reject".
+
+### Streamlit Integration (app.py)
+
+- Pipeline restructured: risk scoring deferred until after consistency check.
+- Consistency check runs on all documents after per-document analysis loop.
+- Risk scoring receives consistency results for each document's score.
+- Cross-document consistency display: table with Field/Status/Details columns.
+- Risk display updated: "Screening Assessment" with heuristic score (N/100),
+  risk badge, indicators list, recommendation, disclaimer.
+- DB record includes consistency status alongside existing fields.
+
 ## Next Major Development Task
 
-Implement cross-document consistency checking (consistency.py) and/or
-rule-based risk scoring (scoring.py).
+All core analysis modules are now implemented. Potential next steps:
+- UI polish and user experience improvements
+- Production hardening (error recovery, logging, performance)
+- Optional face detection for photo documents
+- Reporting and export features
+- Documentation for end users

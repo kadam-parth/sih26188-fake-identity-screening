@@ -383,3 +383,70 @@ in src/config.py rather than hardcoded in the analyzer.
 Centralizing thresholds makes them discoverable, adjustable, and
 documentable without modifying analysis logic. This follows the same
 pattern used for OCR and preprocessing configuration.
+---
+
+## Decision 025 - Deterministic Rule-Based Risk Scoring
+
+### Decision
+
+The risk engine uses a deterministic weighted rule system. It is NOT a
+trained ML model, NOT a probability model, and NOT statistically calibrated.
+The score is explicitly labeled "heuristic screening score" throughout.
+
+### Reason
+
+The team has no training data, no validation dataset, and no calibration
+methodology. Calling a weighted sum of heuristic indicators a probability
+would be technically dishonest. A transparent deterministic approach is
+more appropriate for a hackathon MVP.
+
+---
+
+## Decision 026 - Missing Data Does Not Equal Fraud
+
+### Decision
+
+When cross-document consistency data is unavailable (single document upload),
+the consistency weight is redistributed to other components rather than
+penalizing the score. Missing fields or unavailable analysis modules produce
+zero risk contribution, not a penalty.
+
+### Reason
+
+A user uploading a single document is the normal case. It would be incorrect
+to raise a risk score simply because consistency data is absent. Similarly,
+OCR failures or missing fields should not be treated as evidence of fraud.
+
+---
+
+## Decision 027 - Normalized Name Comparison
+
+### Decision
+
+Cross-document name comparison uses simple deterministic normalization:
+lowercase, collapse whitespace, remove common punctuation (., -, ,).
+No fuzzy matching library is used.
+
+### Reason
+
+Simple normalization handles the most common legitimate variations
+(case differences, extra spaces, punctuation) without introducing
+false matches from aggressive fuzzy matching. If fuzzy matching is
+needed later, it can be added with a configurable threshold.
+
+---
+
+## Decision 028 - Human Review Is Final Decision Point
+
+### Decision
+
+The system recommends human review for all risk levels. It never
+recommends rejecting an applicant, confirming fraud, or making
+legal determinations.
+
+### Reason
+
+This is a screening tool. The final decision about a person's identity
+or a document's authenticity must be made by a trained human reviewer
+using authorized verification channels. Automated rejection would be
+both technically unjustified and ethically inappropriate.
