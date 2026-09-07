@@ -11,7 +11,7 @@ from pathlib import Path
 
 # ── Application ──────────────────────────────────────────────────────────────
 APP_NAME = "AI Document Screening System"
-APP_VERSION = "0.1.0"
+APP_VERSION = "0.2.0"
 APP_DESCRIPTION = (
     "AI-Based Fake Identity & Document Screening System — "
     "SIH26188 Smart India Hackathon Project"

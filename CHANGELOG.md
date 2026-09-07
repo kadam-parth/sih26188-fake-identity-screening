@@ -1,5 +1,65 @@
 # CHANGELOG
 
+## 2026-09-07
+
+### Phase 6 — UI / Reporting / Polish (v0.2.0)
+
+Improved the Streamlit application for professional presentation and SIH
+demonstration readiness.
+
+Completed:
+
+- Upload experience
+  - Added "How It Works" intro card explaining the 5-step pipeline
+  - Added note about using synthetic/dummy documents for testing
+  - Improved supported-document cards with icons and feature details
+- Tabbed results layout
+  - Restructured _render_results() into 4 tabs:
+    Screening Assessment | Fields & Validation | Image Analysis | Details
+  - Risk score hero display always visible above tabs (large score, badge)
+  - Screening Assessment tab: risk indicators with visual highlighting,
+    contributing factors table, recommendation, score breakdown
+  - Fields & Validation tab: extracted fields + validation checks
+  - Image Analysis tab: anomaly checks, ELA image, suspicious status
+  - Details tab: OCR results, preprocessing steps, module status
+- Report export
+  - Added JSON download button after each document analysis
+  - Report includes: document type, risk score/level, recommendation,
+    extracted fields, validation checks, tampering findings, consistency
+    results, indicators, disclaimer
+  - Uses st.download_button with json.dumps — no new dependencies
+- Visual improvements
+  - Added CSS for suspicious indicators (red accent) and normal (green)
+  - Added risk score hero display with large colored score number
+  - Added intro card and download area styling
+- Error handling
+  - Categorized errors: image read errors, memory errors, unexpected
+  - User-friendly messages without raw tracebacks
+  - Technical details available in collapsed expander
+- History page improvements
+  - Added 4-column metrics: Total, Low, Medium, High
+  - Better individual record layout with risk badge, score, recommendation
+  - Structured findings display (validation, tampering, consistency, factors)
+  - Raw JSON available in nested expander
+  - Added "Clear All" button with confirmation dialog
+- Sidebar enhancements
+  - Added risk distribution summary (Low/Medium/High counts)
+  - Added "Screening Pipeline" overview showing 6 processing steps
+- Version bumped from 0.1.0 to 0.2.0
+
+Files modified:
+- app.py — UI restructuring, tabbed layout, report export, error handling
+- src/config.py — Version bump to 0.2.0
+- CHANGELOG.md — This entry
+- TODO.md — Phase 6 marked complete
+- PROJECT_CONTEXT.md — Updated for Phase 6
+- DECISIONS.md — Added Phase 6 decisions
+
+No changes to screening logic (OCR, detection, extraction, validation,
+tampering, consistency, risk scoring).
+
+Test count: 219/219 passing (no regressions).
+
 ## 2026-09-01
 
 ### Phase 5 — Cross-Document Consistency + Risk Scoring

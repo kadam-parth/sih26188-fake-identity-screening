@@ -450,3 +450,35 @@ This is a screening tool. The final decision about a person's identity
 or a document's authenticity must be made by a trained human reviewer
 using authorized verification channels. Automated rejection would be
 both technically unjustified and ethically inappropriate.
+## Decision 029 - Tabbed Results Layout
+
+### Decision
+Reorganize the screening results into 4 tabs: Screening Assessment, Fields & Validation, Image Analysis, Details.
+
+### Rationale
+A single scrolling page with all results is overwhelming for demos. Tabs reduce cognitive load while keeping all information accessible. The risk score hero display stays above tabs so the headline result is always visible.
+
+### Status
+Implemented — Phase 6
+
+## Decision 030 - JSON Report Export
+
+### Decision
+Provide a downloadable JSON screening report using Streamlit's built-in download_button. No PDF dependencies.
+
+### Rationale
+JSON is lightweight, requires no new dependencies, preserves structured data, and can be parsed by other tools. PDF would require additional libraries (e.g., reportlab, fpdf) which increases project complexity for a hackathon prototype.
+
+### Status
+Implemented — Phase 6
+
+## Decision 031 - User-Friendly Error Categorization
+
+### Decision
+Categorize pipeline errors into specific types (image read errors, memory errors, unexpected errors) with beginner-friendly messages. Technical details are available in a collapsed expander.
+
+### Rationale
+Raw tracebacks confuse non-technical users during demos. Categorized messages help users understand what went wrong and what to try next. Technical details remain accessible for debugging.
+
+### Status
+Implemented — Phase 6

@@ -14,7 +14,7 @@ or whether a document is definitively fake.
 
 ## Current Development Stage
 
-PHASE 5 COMPLETE â€” OCR, DETECTION, EXTRACTION, VALIDATION, ANOMALY, CONSISTENCY, RISK
+PHASE 6 COMPLETE — UI / REPORTING / POLISH (v0.2.0)
 
 Phase 1: Project skeleton and Streamlit MVP.
 Phase 2: EasyOCR integration, document detection, field extraction.
@@ -22,10 +22,11 @@ Phase 2.5: Streamlit OCR display fix (grayscale input, expanded results).
 Phase 3: Document and field validation (Verhoeff, format, dates, required fields).
 Phase 4: Image tampering/anomaly analysis (ELA, edge density, noise analysis).
 Phase 5: Cross-document consistency + explainable rule-based risk scoring.
+Phase 6: UI/reporting polish — tabbed results, JSON export, improved history, error handling.
 
 Current test result:
 
-219 tests passed.
+219 tests passed (no regressions after Phase 6 UI changes).
 
 ## What Currently Exists
 
@@ -164,7 +165,7 @@ Project has commits and is synced.
 
 ## Current Test Status
 
-219/219 tests passed.
+219/219 tests passed (no regressions after Phase 6 UI changes).
 
 - tests/test_db.py â€” 10 tests (database)
 - tests/test_preprocessing.py â€” 11 tests (image preprocessing)

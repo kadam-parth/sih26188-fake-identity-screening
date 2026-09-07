@@ -6,6 +6,7 @@ from __future__ import annotations
 
 import hashlib
 import io
+import json
 import logging
 from datetime import datetime
 from typing import Any
@@ -167,6 +168,62 @@ st.markdown("""
         border-top: 1px solid #30363d;
         margin-top: 2rem;
     }
+
+    /* Suspicious / alert highlights */
+    .indicator-suspicious {
+        background: #dc354515;
+        border-left: 3px solid #dc3545;
+        padding: 0.5rem 0.75rem;
+        border-radius: 4px;
+        margin: 0.3rem 0;
+        font-size: 0.88rem;
+    }
+    .indicator-normal {
+        background: #28a74510;
+        border-left: 3px solid #28a745;
+        padding: 0.5rem 0.75rem;
+        border-radius: 4px;
+        margin: 0.3rem 0;
+        font-size: 0.88rem;
+    }
+
+    /* Risk score hero display */
+    .risk-hero {
+        text-align: center;
+        padding: 1.2rem 0.5rem;
+    }
+    .risk-hero .score-value {
+        font-size: 2.8rem;
+        font-weight: 800;
+        line-height: 1;
+    }
+    .risk-hero .score-label {
+        font-size: 0.8rem;
+        color: #8b949e;
+        margin-top: 0.3rem;
+    }
+    .risk-hero .score-low    { color: #28a745; }
+    .risk-hero .score-medium { color: #ffc107; }
+    .risk-hero .score-high   { color: #dc3545; }
+
+    /* Intro card */
+    .intro-card {
+        background: #161b22;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        padding: 1rem 1.25rem;
+        margin-bottom: 1rem;
+    }
+    .intro-card h4 { color: #4A9EFF; margin-top: 0; }
+
+    /* Download button area */
+    .download-area {
+        background: #1a1f2e;
+        border: 1px solid #30363d;
+        border-radius: 8px;
+        padding: 0.75rem 1rem;
+        margin: 0.5rem 0;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -250,6 +307,25 @@ def page_screening() -> None:
     # Privacy banner (collapsed)
     with st.expander("🔒 Privacy Notice", expanded=False):
         st.markdown(PRIVACY_NOTICE)
+
+    # ── Intro card ────────────────────────────────────────────────────────
+    st.markdown(
+        '<div class="intro-card">'
+        "<h4>How It Works</h4>"
+        "<p>Upload an identity document image and the system will automatically:</p>"
+        "<ol>"
+        "<li><strong>Extract text</strong> using OCR (EasyOCR)</li>"
+        "<li><strong>Detect document type</strong> (Aadhaar, PAN, Voter ID)</li>"
+        "<li><strong>Extract &amp; validate fields</strong> (name, ID number, DOB)</li>"
+        "<li><strong>Analyze image anomalies</strong> (ELA, edge density, noise)</li>"
+        "<li><strong>Score risk indicators</strong> with an explainable heuristic</li>"
+        "</ol>"
+        "<p style='color:#8b949e;font-size:0.82rem;'>"
+        "🧪 For testing, use synthetic or dummy document images. "
+        "Do not upload real identity documents in demo environments.</p>"
+        "</div>",
+        unsafe_allow_html=True,
+    )
 
     # ── Upload ─────────────────────────────────────────────────────────────
     st.subheader("📤 Upload Document(s)")
@@ -357,9 +433,26 @@ def page_screening() -> None:
                     "_fhash": fhash,
                 })
 
+            except (OSError, IOError) as exc:
+                logger.exception("Image read error for %s", uf.name)
+                st.error(
+                    f"❌ Could not read **{uf.name}**. The file may be corrupted "
+                    f"or in an unsupported format. Please try a different image."
+                )
+            except MemoryError:
+                logger.exception("Memory error processing %s", uf.name)
+                st.error(
+                    f"❌ **{uf.name}** is too large to process. "
+                    f"Please use a smaller image (recommended: under 5 MB)."
+                )
             except Exception as exc:
                 logger.exception("Error processing %s", uf.name)
-                st.error(f"❌ Error processing **{uf.name}**: {exc}")
+                st.error(
+                    f"❌ An unexpected error occurred while processing **{uf.name}**. "
+                    f"Please try a different image or check the file format."
+                )
+                with st.expander("Technical details", expanded=False):
+                    st.code(str(exc))
 
         # ── Cross-document consistency ──────────────────────────────────
         checker = ConsistencyChecker()
@@ -425,6 +518,70 @@ def page_screening() -> None:
             if sid and sid > 0:
                 st.caption(f"💾 Screening saved (ID: {sid})")
 
+            # ── Report download ──────────────────────────────────────────
+            report = {
+                "report_type": "SIH26188 Document Screening Report",
+                "generated_at": format_timestamp(),
+                "document_type": doc_data["_doc_type"],
+                "document_name": doc_data["_detect"].get("document_name", "Unknown"),
+                "screening": {
+                    "heuristic_score": risk_result.get("score_pct", 0),
+                    "heuristic_score_raw": risk_result.get("score", 0.0),
+                    "risk_level": level,
+                    "recommendation": risk_result.get("recommendation", ""),
+                    "indicators": risk_result.get("indicators", []),
+                    "factors": risk_result.get("factors", []),
+                    "summary": risk_result.get("summary", ""),
+                },
+                "extracted_fields": {
+                    fname: (fval.get("value", str(fval)) if isinstance(fval, dict) else str(fval))
+                    for fname, fval in doc_data["_extract"].get("fields", {}).items()
+                },
+                "validation": {
+                    "status": valid_result.get("status"),
+                    "passed": valid_result.get("valid_count", 0),
+                    "total": valid_result.get("total_count", 0),
+                    "checks": valid_result.get("checks", []),
+                },
+                "tampering_analysis": {
+                    "status": tamp_result.get("status"),
+                    "overall_suspicious": tamp_result.get("overall_suspicious"),
+                    "suspicion_score": tamp_result.get("suspicion_score"),
+                    "checks": [
+                        {k: v for k, v in tc.items() if k != "image"}
+                        for tc in tamp_result.get("checks", [])
+                    ],
+                    "message": tamp_result.get("message", ""),
+                },
+                "consistency": {
+                    "status": consistency_result.get("status"),
+                    "consistent": consistency_result.get("consistent"),
+                    "score": consistency_result.get("consistency_score"),
+                    "checks": consistency_result.get("checks", []),
+                },
+                "ocr": {
+                    "status": doc_data["_ocr"].get("status"),
+                    "confidence": doc_data["_ocr"].get("confidence"),
+                    "engine": doc_data["_ocr"].get("engine", "EasyOCR"),
+                },
+                "disclaimer": (
+                    "This is a heuristic screening report generated by the "
+                    "SIH26188 AI Document Screening System. Scores are "
+                    "deterministic heuristics, not probabilities of fraud. "
+                    "All findings require human review and verification "
+                    "through authorized channels."
+                ),
+            }
+            report_json = json.dumps(report, indent=2, default=str)
+            doc_slug = (doc_data["_doc_type"] or "document").replace(" ", "_")
+            st.download_button(
+                label="📥 Download Screening Report (JSON)",
+                data=report_json,
+                file_name=f"screening_report_{doc_slug}_{doc_data['_fhash'][:8]}.json",
+                mime="application/json",
+                key=f"dl_{doc_data['_fhash']}",
+            )
+
         # ── Cross-document consistency display ──────────────────────────
         if consistency_result.get("status") == "success":
             st.markdown("---")
@@ -450,13 +607,18 @@ def page_screening() -> None:
 
 def _render_supported_docs_summary() -> None:
     """Show a compact card of supported document types."""
+    doc_icons = {"aadhaar": "🪪", "pan": "💳", "voter_id": "🗳️"}
     cols = st.columns(len(DOCUMENT_TYPES))
     for col, (key, doc) in zip(cols, DOCUMENT_TYPES.items()):
         with col:
+            icon = doc_icons.get(key, "📄")
+            n_fields = len(doc["fields"])
+            checksum = f"✅ {doc['checksum_algorithm'].title()} checksum" if doc.get("checksum_algorithm") else ""
             st.markdown(
-                f"**{doc['name']}**\n\n"
+                f"**{icon} {doc['name']}**\n\n"
                 f"_{doc['description']}_\n\n"
-                f"Fields: {len(doc['fields'])}"
+                f"**{n_fields}** extractable fields"
+                + (f"  \n{checksum}" if checksum else "")
             )
 
 
@@ -472,40 +634,35 @@ def _render_results(
     module_statuses: dict,
     doc_type: str | None,
 ) -> None:
-    """Render the full analysis results panel."""
+    """Render the full analysis results panel with tabbed layout."""
 
     st.divider()
     doc_label = doc_type.upper() if doc_type else "UNKNOWN"
     st.markdown(f"## 📊 Screening Report — {doc_label}")
 
-    # ── Row 1: Risk score + Document info ──────────────────────────────────
-    col_risk, col_doc = st.columns([1, 2])
+    # ── Headline: Risk score hero + Document info (always visible) ─────────
+    score = risk_result.get("score", 0.0)
+    score_pct = risk_result.get("score_pct", round(score * 100))
+    level = risk_result.get("level", "LOW")
+    score_css = f"score-{level.lower()}"
 
-    with col_risk:
-        st.markdown('<div class="result-section">', unsafe_allow_html=True)
-        st.markdown("#### ⚖️ Screening Assessment")
-        score = risk_result.get("score", 0.0)
-        score_pct = risk_result.get("score_pct", round(score * 100))
-        level = risk_result.get("level", "LOW")
-        st.metric("Heuristic Score", f"{score_pct} / 100")
+    col_score, col_badge, col_doc = st.columns([1, 1, 2])
+
+    with col_score:
+        st.markdown(
+            f'<div class="risk-hero">'
+            f'<div class="score-value {score_css}">{score_pct}</div>'
+            f'<div class="score-label">Heuristic Score / 100</div>'
+            f'</div>',
+            unsafe_allow_html=True,
+        )
+
+    with col_badge:
+        st.markdown("<br>", unsafe_allow_html=True)
         st.markdown(render_risk_badge(level), unsafe_allow_html=True)
         st.caption("Heuristic screening score — not a probability of fraud")
 
-        # Show contributing indicators
-        indicators = risk_result.get("indicators", [])
-        if indicators:
-            st.markdown("**Risk Indicators:**")
-            for ind in indicators:
-                st.markdown(f"- {ind}")
-        else:
-            st.markdown("**No suspicious indicators identified.**")
-
-        st.markdown(f"**Recommendation:** {risk_result.get('recommendation', 'N/A')}")
-        st.markdown("</div>", unsafe_allow_html=True)
-
     with col_doc:
-        st.markdown('<div class="result-section">', unsafe_allow_html=True)
-        st.markdown("#### 📄 Document Information")
         doc_name = detect_result.get("document_name", "Unknown")
         doc_conf = detect_result.get("confidence", 0.0)
         c1, c2 = st.columns(2)
@@ -513,17 +670,170 @@ def _render_results(
         c2.metric("Detection Confidence", f"{doc_conf:.0%}")
         if detect_result.get("matched_keywords"):
             st.caption(f"Matched keywords: {', '.join(detect_result['matched_keywords'])}")
-        st.markdown("</div>", unsafe_allow_html=True)
 
-    # ── Row 2: Preprocessing + OCR ─────────────────────────────────────────
-    with st.expander("🖼️ Preprocessing Steps", expanded=False):
-        step_cols = st.columns(min(len(prep.get("steps", [])), 4) or 1)
-        for idx, step in enumerate(prep.get("steps", [])):
-            with step_cols[idx % len(step_cols)]:
-                st.caption(f"**{step['name'].title()}**")
-                st.image(np_image_to_pil(step.get("image")), caption=step["description"], use_container_width=True)
+    # ── Tabs ───────────────────────────────────────────────────────────────
+    tab_assessment, tab_fields, tab_image, tab_details = st.tabs([
+        "⚖️ Screening Assessment",
+        "📋 Fields & Validation",
+        "🔬 Image Analysis",
+        "📝 Details",
+    ])
 
-    with st.expander("📝 OCR Results", expanded=True):
+    # ── Tab 1: Screening Assessment ────────────────────────────────────────
+    with tab_assessment:
+        col_ind, col_rec = st.columns([3, 2])
+
+        with col_ind:
+            st.markdown("#### Risk Indicators")
+            indicators = risk_result.get("indicators", [])
+            if indicators:
+                for ind in indicators:
+                    st.markdown(
+                        f'<div class="indicator-suspicious">🚨 {ind}</div>',
+                        unsafe_allow_html=True,
+                    )
+            else:
+                st.markdown(
+                    '<div class="indicator-normal">✅ No suspicious indicators identified.</div>',
+                    unsafe_allow_html=True,
+                )
+
+            # Show contributing factors
+            factors = risk_result.get("factors", [])
+            if factors:
+                st.markdown("##### Contributing Factors")
+                factor_data = []
+                for f in factors:
+                    factor_data.append({
+                        "Category": f.get("category", "").title(),
+                        "Factor": f.get("name", ""),
+                        "Weight": f"{f.get('contribution', 0)}%",
+                        "Description": f.get("description", ""),
+                    })
+                st.table(factor_data)
+
+        with col_rec:
+            st.markdown("#### Recommendation")
+            recommendation = risk_result.get("recommendation", "N/A")
+            st.info(f"📋 {recommendation}")
+
+            st.markdown("#### Score Breakdown")
+            st.markdown(f"**Heuristic Score:** {score_pct} / 100")
+            st.markdown(f"**Risk Level:** {render_risk_badge(level)}", unsafe_allow_html=True)
+            st.markdown(f"**Summary:** {risk_result.get('summary', 'N/A')}")
+
+    # ── Tab 2: Fields & Validation ─────────────────────────────────────────
+    with tab_fields:
+        # Extracted fields
+        st.markdown("#### 📋 Extracted Fields")
+        fields = extract_result.get("fields", {})
+        if fields:
+            field_data = []
+            for fname, fval in fields.items():
+                display_val = fval
+                if isinstance(fval, dict):
+                    display_val = fval.get("value", str(fval))
+                masked = mask_sensitive_field(str(display_val), fname, doc_type or "")
+                label = fname
+                if doc_type and doc_type in DOCUMENT_TYPES:
+                    fconf = DOCUMENT_TYPES[doc_type]["fields"].get(fname, {})
+                    label = fconf.get("label", fname)
+                field_data.append({"Field": label, "Value": masked})
+            st.table(field_data)
+        else:
+            st.info(
+                "No identity fields were extracted. "
+                "The document may be unrecognised or OCR text was insufficient."
+            )
+        st.caption(
+            f"Extracted **{extract_result.get('extraction_count', 0)}** / "
+            f"**{extract_result.get('total_fields', 0)}** defined fields."
+        )
+
+        st.divider()
+
+        # Validation checks
+        st.markdown("#### ✅ Validation Checks")
+        valid_status = valid_result.get("status", "")
+        checks = valid_result.get("checks", [])
+
+        if valid_status == "error" and not checks:
+            findings = valid_result.get("findings", [])
+            if findings:
+                for f in findings:
+                    st.warning(f)
+            else:
+                st.info("No validation checks could be performed for this document type.")
+        elif checks:
+            check_data = []
+            for chk in checks:
+                passed = chk.get("passed")
+                icon = "✅" if passed else "❌"
+                check_data.append({
+                    "Check": chk.get("check_name", chk.get("field", "")),
+                    "Result": f"{icon} {'Passed' if passed else 'Failed'}",
+                    "Details": chk.get("message", ""),
+                })
+            st.table(check_data)
+
+            findings = valid_result.get("findings", [])
+            if findings:
+                st.markdown("**Validation Findings:**")
+                for f in findings:
+                    st.markdown(f"- {f}")
+        else:
+            st.info("No validation checks were performed.")
+
+        vc = valid_result.get("valid_count", 0)
+        tc = valid_result.get("total_count", 0)
+        st.caption(f"Passed: {vc}/{tc}")
+
+    # ── Tab 3: Image Analysis ──────────────────────────────────────────────
+    with tab_image:
+        st.markdown("#### 🔬 Image Anomaly Analysis")
+        tamp_status = tamp_result.get("status", "")
+        tamp_checks = tamp_result.get("checks", [])
+
+        if tamp_status == "error" and not tamp_checks:
+            st.warning(f"⚠️ {tamp_result.get('message', 'Analysis could not be performed.')}")
+        elif tamp_checks:
+            check_data = []
+            for tc_item in tamp_checks:
+                suspicious = tc_item.get("suspicious")
+                icon = "🚨" if suspicious else "✅"
+                check_data.append({
+                    "Indicator": tc_item.get("name", ""),
+                    "Status": f"{icon} {'Suspicious' if suspicious else 'Normal'}",
+                    "Details": tc_item.get("result", tc_item.get("description", "")),
+                })
+            st.table(check_data)
+
+            if tamp_result.get("ela_image") is not None:
+                st.image(
+                    np_image_to_pil(tamp_result["ela_image"]),
+                    caption="Error Level Analysis (ELA) — brighter regions indicate higher compression difference",
+                    use_container_width=True,
+                )
+
+            if tamp_result.get("overall_suspicious"):
+                st.warning(f"⚠️ {tamp_result.get('message', '')}")
+            else:
+                st.success(f"✅ {tamp_result.get('message', '')}")
+        else:
+            st.info("No image anomaly checks were performed.")
+
+        t_score = tamp_result.get("suspicion_score", 0.0)
+        method = tamp_result.get("method", "N/A")
+        st.caption(
+            f"Heuristic anomaly score: {t_score:.2f} · "
+            f"Method: {method} · "
+            f"Overall suspicious: {'Yes' if tamp_result.get('overall_suspicious') else 'No'}"
+        )
+
+    # ── Tab 4: Details ─────────────────────────────────────────────────────
+    with tab_details:
+        # OCR results
+        st.markdown("#### 📝 OCR Results")
         ocr_status = ocr_result.get("status", "unknown")
         ocr_text = ocr_result.get("text", "")
 
@@ -545,114 +855,28 @@ def _render_results(
         else:
             st.info(f"OCR returned status: {ocr_status}.")
 
-    # ── Row 3: Extracted fields ────────────────────────────────────────────
-    st.markdown('<div class="result-section">', unsafe_allow_html=True)
-    st.markdown("#### 📋 Extracted Fields")
-    fields = extract_result.get("fields", {})
-    if fields:
-        field_data = []
-        for fname, fval in fields.items():
-            display_val = fval
-            if isinstance(fval, dict):
-                display_val = fval.get("value", str(fval))
-            masked = mask_sensitive_field(str(display_val), fname, doc_type or "")
-            # Look up label from config
-            label = fname
-            if doc_type and doc_type in DOCUMENT_TYPES:
-                fconf = DOCUMENT_TYPES[doc_type]["fields"].get(fname, {})
-                label = fconf.get("label", fname)
-            field_data.append({"Field": label, "Value": masked})
-        st.table(field_data)
-    else:
-        st.info("No identity fields were extracted. The document may be unrecognised or OCR text was insufficient.")
-    st.markdown(f"Extracted **{extract_result.get('extraction_count', 0)}** / **{extract_result.get('total_fields', 0)}** defined fields.")
-    st.markdown("</div>", unsafe_allow_html=True)
+        st.divider()
 
-    # ── Row 4: Validation checks ───────────────────────────────────────────
-    st.markdown('<div class="result-section">', unsafe_allow_html=True)
-    st.markdown("#### ✅ Validation Checks")
-    valid_status = valid_result.get("status", "")
-    checks = valid_result.get("checks", [])
-
-    if valid_status == "error" and not checks:
-        findings = valid_result.get("findings", [])
-        if findings:
-            for f in findings:
-                st.warning(f)
+        # Preprocessing steps
+        st.markdown("#### 🖼️ Preprocessing Steps")
+        steps = prep.get("steps", [])
+        if steps:
+            step_cols = st.columns(min(len(steps), 4))
+            for idx, step in enumerate(steps):
+                with step_cols[idx % len(step_cols)]:
+                    st.caption(f"**{step['name'].title()}**")
+                    st.image(
+                        np_image_to_pil(step.get("image")),
+                        caption=step["description"],
+                        use_container_width=True,
+                    )
         else:
-            st.info("No validation checks could be performed.")
-    elif checks:
-        # Display as a table
-        check_data = []
-        for chk in checks:
-            icon = "✅" if chk.get("passed") else "❌"
-            check_data.append({
-                "Check": chk.get("check_name", chk.get("field", "")),
-                "Result": f"{icon} {'Passed' if chk.get('passed') else 'Failed'}",
-                "Details": chk.get("message", ""),
-            })
-        st.table(check_data)
+            st.info("No preprocessing steps recorded.")
 
-        # Show findings
-        findings = valid_result.get("findings", [])
-        if findings:
-            st.markdown("**Validation Findings:**")
-            for f in findings:
-                st.markdown(f"- {f}")
-    else:
-        st.info("No validation checks were performed.")
+        st.divider()
 
-    vc = valid_result.get("valid_count", 0)
-    tc = valid_result.get("total_count", 0)
-    st.caption(f"Passed: {vc}/{tc}")
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    # ── Row 5: Tampering analysis ──────────────────────────────────────────
-    st.markdown('<div class="result-section">', unsafe_allow_html=True)
-    st.markdown("#### 🔬 Image Anomaly Analysis")
-    tamp_status = tamp_result.get("status", "")
-    tamp_checks = tamp_result.get("checks", [])
-
-    if tamp_status == "error" and not tamp_checks:
-        st.warning(f"⚠️ {tamp_result.get('message', 'Analysis could not be performed.')}")
-    elif tamp_checks:
-        # Show checks in a table
-        check_data = []
-        for tc_item in tamp_checks:
-            icon = "🚨" if tc_item.get("suspicious") else "✅"
-            check_data.append({
-                "Indicator": tc_item.get("name", ""),
-                "Status": f"{icon} {'Suspicious' if tc_item.get('suspicious') else 'Normal'}",
-                "Details": tc_item.get("result", tc_item.get("description", "")),
-            })
-        st.table(check_data)
-
-        if tamp_result.get("ela_image") is not None:
-            st.image(
-                np_image_to_pil(tamp_result["ela_image"]),
-                caption="Error Level Analysis (ELA) — brighter regions indicate higher compression difference",
-                use_container_width=True,
-            )
-
-        # Show overall message
-        if tamp_result.get("overall_suspicious"):
-            st.warning(f"⚠️ {tamp_result.get('message', '')}")
-        else:
-            st.success(f"✅ {tamp_result.get('message', '')}")
-    else:
-        st.info("No image anomaly checks were performed.")
-
-    score = tamp_result.get("suspicion_score", 0.0)
-    method = tamp_result.get("method", "N/A")
-    st.caption(
-        f"Heuristic anomaly score: {score:.2f} · "
-        f"Method: {method} · "
-        f"Overall suspicious: {'Yes' if tamp_result.get('overall_suspicious') else 'No'}"
-    )
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    # ── Module status overview ─────────────────────────────────────────────
-    with st.expander("🔧 Module Status", expanded=False):
+        # Module status
+        st.markdown("#### 🔧 Module Status")
         status_html = "".join(render_module_status(k, v) for k, v in module_statuses.items())
         st.markdown(status_html, unsafe_allow_html=True)
 
@@ -669,21 +893,21 @@ def page_history() -> None:
     )
 
     db = get_database()
-    count = db.get_screening_count()
-
-    # Metrics row
-    col1, col2, col3 = st.columns(3)
-    col1.metric("Total Screenings", count)
-
     screenings = db.get_all_screenings()
+    count = len(screenings)
 
     # Count by risk level
     levels = {"LOW": 0, "MEDIUM": 0, "HIGH": 0}
     for s in screenings:
         lv = (s.get("risk_level") or "LOW").upper()
         levels[lv] = levels.get(lv, 0) + 1
+
+    # Metrics row
+    col1, col2, col3, col4 = st.columns(4)
+    col1.metric("Total Screenings", count)
     col2.metric("🟢 Low Risk", levels["LOW"])
-    col3.metric("🔴 High Risk", levels["HIGH"])
+    col3.metric("🟡 Medium Risk", levels["MEDIUM"])
+    col4.metric("🔴 High Risk", levels["HIGH"])
 
     st.divider()
 
@@ -691,26 +915,74 @@ def page_history() -> None:
         st.info("No screenings recorded yet. Go to **Document Screening** to analyze documents.")
         return
 
-    # Table view
+    # Clear all button
+    col_spacer, col_clear = st.columns([4, 1])
+    with col_clear:
+        if st.button("🗑️ Clear All", type="secondary"):
+            st.session_state["confirm_clear_all"] = True
+    if st.session_state.get("confirm_clear_all"):
+        st.warning("⚠️ This will delete **all** screening records. This cannot be undone.")
+        c1, c2, _ = st.columns([1, 1, 4])
+        with c1:
+            if st.button("✅ Confirm Delete All", type="primary"):
+                for s in screenings:
+                    db.delete_screening(s.get("id"))
+                st.session_state["confirm_clear_all"] = False
+                st.success("All screening records deleted.")
+                st.rerun()
+        with c2:
+            if st.button("Cancel"):
+                st.session_state["confirm_clear_all"] = False
+                st.rerun()
+
+    # Screening records
     for s in screenings:
         sid = s.get("id", "?")
         ts = s.get("timestamp", s.get("created_at", ""))
         doc_name = s.get("document_name", "Unknown")
         risk_lvl = (s.get("risk_level") or "LOW").upper()
         risk_score = s.get("risk_score", 0.0)
+        risk_pct = round(risk_score * 100)
 
         badge = render_risk_badge(risk_lvl)
-        header = f"**#{sid}** · {doc_name} · Score: {risk_score:.2f} · {ts}"
+        header = f"**#{sid}** · {doc_name} · Score: {risk_pct}/100 · {ts}"
 
         with st.expander(header, expanded=False):
-            st.markdown(badge, unsafe_allow_html=True)
-            st.markdown(f"**Recommendation:** {s.get('recommendation', 'N/A')}")
+            # Summary row
+            c1, c2, c3 = st.columns(3)
+            c1.markdown(f"**Risk Level:** {badge}", unsafe_allow_html=True)
+            c2.metric("Heuristic Score", f"{risk_pct} / 100")
+            c3.markdown(f"**Recommendation:** {s.get('recommendation', 'N/A')}")
 
+            # Structured findings
             findings = s.get("findings")
             if findings and isinstance(findings, dict):
-                st.json(findings)
+                with st.expander("📋 Detailed Findings", expanded=False):
+                    # Validation
+                    val = findings.get("validation", {})
+                    if val:
+                        st.markdown(f"**Validation:** {val.get('valid', 0)}/{val.get('total', 0)} checks passed")
+                    # Tampering
+                    tamp = findings.get("tampering", {})
+                    if tamp:
+                        susp = "⚠️ Yes" if tamp.get("suspicious") else "✅ No"
+                        st.markdown(f"**Tampering suspicious:** {susp} (score: {tamp.get('score', 0):.2f})")
+                    # Consistency
+                    cons = findings.get("consistency", {})
+                    if cons:
+                        st.markdown(f"**Consistency:** {cons.get('status', 'N/A')}")
+                    # Risk factors
+                    risk = findings.get("risk", {})
+                    if risk and risk.get("factors"):
+                        st.markdown("**Risk Factors:**")
+                        for f in risk["factors"]:
+                            st.markdown(f"- [{f.get('category', '')}] {f.get('name', '')}: {f.get('description', '')}")
 
-            if st.button(f"🗑️ Delete screening #{sid}", key=f"del_{sid}"):
+                    # Raw JSON fallback
+                    with st.expander("🔍 Raw JSON", expanded=False):
+                        st.json(findings)
+
+            if st.button(f"🗑️ Delete #{sid}", key=f"del_{sid}"):
                 db.delete_screening(sid)
                 st.success(f"Screening #{sid} deleted.")
                 st.rerun()
@@ -806,9 +1078,35 @@ def main() -> None:
 
         st.divider()
 
-        # Quick stats
+        # Quick stats with risk distribution
         db = get_database()
-        st.metric("Screenings", db.get_screening_count())
+        screenings = db.get_all_screenings()
+        total = len(screenings)
+        st.metric("Total Screenings", total)
+
+        if total > 0:
+            levels = {"LOW": 0, "MEDIUM": 0, "HIGH": 0}
+            for s in screenings:
+                lv = (s.get("risk_level") or "LOW").upper()
+                levels[lv] = levels.get(lv, 0) + 1
+            st.caption(
+                f"🟢 {levels['LOW']} Low  ·  "
+                f"🟡 {levels['MEDIUM']} Medium  ·  "
+                f"🔴 {levels['HIGH']} High"
+            )
+
+        st.divider()
+
+        # Pipeline overview
+        st.markdown("**Screening Pipeline**")
+        st.caption(
+            "1. 📝 OCR text extraction\n"
+            "2. 🔍 Document type detection\n"
+            "3. 📋 Field extraction & validation\n"
+            "4. 🔬 Image anomaly analysis\n"
+            "5. 🔗 Cross-document consistency\n"
+            "6. ⚖️ Risk scoring"
+        )
 
         st.divider()
         st.markdown(

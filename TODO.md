@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-PHASE 5 COMPLETE — ALL CORE ANALYSIS MODULES IMPLEMENTED
+PHASE 6 COMPLETE — UI / REPORTING / POLISH (v0.2.0)
 
 ## Completed
 
@@ -54,12 +54,20 @@ PHASE 5 COMPLETE — ALL CORE ANALYSIS MODULES IMPLEMENTED
 - [x] Add comprehensive risk scoring tests (21 tests)
 - [x] Add Phase 5 integration tests (3 tests)
 - [x] Update all interface contract tests from stubs to real
+- [x] Phase 6: Add "How It Works" intro card
+- [x] Phase 6: Restructure results into 4-tab layout
+- [x] Phase 6: Add JSON screening report export/download
+- [x] Phase 6: Add CSS for suspicious indicators and risk hero display
+- [x] Phase 6: Improve error handling with categorized messages
+- [x] Phase 6: Improve history page (4 metrics, structured findings, Clear All)
+- [x] Phase 6: Enhance sidebar (risk distribution, pipeline overview)
+- [x] Phase 6: Version bump to 0.2.0
 
 ## Day 2 (remaining)
 
 - [ ] Review and polish preprocessing
 - [x] Review Streamlit UI
-- [ ] Improve error handling
+- [x] Improve error handling
 - [ ] Verify configuration management
 - [ ] Prepare safe synthetic/test document data
 
