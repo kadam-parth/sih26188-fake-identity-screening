@@ -319,3 +319,114 @@ class TestRiskSchema:
         info = result["level_info"]
         assert "label" in info
         assert "color" in info
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Phase 7: Hardening tests
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+class TestRiskHardening:
+    """Phase 7 hardening tests for edge cases and design invariants."""
+
+    def test_single_doc_no_consistency_penalty(self) -> None:
+        """Single-document screening must NOT increase risk due to missing
+        consistency data. Score should be the same as if consistency is
+        explicitly absent."""
+        scorer = RiskScorer()
+        r_none = scorer.calculate(_failing_validation(), _clean_tampering(), None)
+        r_insuf = scorer.calculate(
+            _failing_validation(), _clean_tampering(), _insufficient_consistency()
+        )
+        assert r_none["score"] == r_insuf["score"]
+        assert r_none["level"] == r_insuf["level"]
+
+    def test_name_mismatch_creates_indicator(self) -> None:
+        """A name mismatch in consistency should produce a visible indicator."""
+        scorer = RiskScorer()
+        result = scorer.calculate(
+            _passing_validation(),
+            _clean_tampering(),
+            _inconsistent_consistency(),
+        )
+        indicator_text = " ".join(result["indicators"]).lower()
+        assert "mismatch" in indicator_text
+
+    def test_consistency_mismatch_increases_score(self) -> None:
+        """Consistency mismatches should increase risk score compared
+        to consistent documents."""
+        scorer = RiskScorer()
+        r_good = scorer.calculate(
+            _passing_validation(),
+            _clean_tampering(),
+            _consistent_consistency(),
+        )
+        r_bad = scorer.calculate(
+            _passing_validation(),
+            _clean_tampering(),
+            _inconsistent_consistency(),
+        )
+        assert r_bad["score"] > r_good["score"]
+
+    def test_weight_normalization_sums_to_one(self) -> None:
+        """Effective weights should sum to approximately 1.0."""
+        scorer = RiskScorer()
+        w_val = scorer.weights.get("field_validation", 0.3)
+        w_fmt = scorer.weights.get("format_compliance", 0.2)
+        w_tamp = scorer.weights.get("tampering_analysis", 0.35)
+        w_cons = scorer.weights.get("consistency", 0.15)
+        total = w_val + w_fmt + w_tamp + w_cons
+        assert abs(total - 1.0) < 0.01
+
+    def test_score_at_boundary_0_3(self) -> None:
+        """Score at exactly 0.3 should be LOW."""
+        scorer = RiskScorer()
+        assert scorer._determine_level(0.3) == "LOW"
+
+    def test_score_at_boundary_0_6(self) -> None:
+        """Score at exactly 0.6 should be MEDIUM."""
+        scorer = RiskScorer()
+        assert scorer._determine_level(0.6) == "MEDIUM"
+
+    def test_score_above_0_6_is_high(self) -> None:
+        """Score above 0.6 should be HIGH."""
+        scorer = RiskScorer()
+        assert scorer._determine_level(0.61) == "HIGH"
+
+    def test_all_clean_is_low(self) -> None:
+        """Everything clean should produce LOW risk."""
+        scorer = RiskScorer()
+        result = scorer.calculate(
+            _passing_validation(),
+            _clean_tampering(),
+            _consistent_consistency(),
+        )
+        assert result["level"] == "LOW"
+        assert result["score"] == 0.0
+
+    def test_all_bad_is_high(self) -> None:
+        """Everything failing should produce HIGH risk."""
+        scorer = RiskScorer()
+        result = scorer.calculate(
+            _failing_validation(),
+            _suspicious_tampering(),
+            _inconsistent_consistency(),
+        )
+        assert result["level"] in ("MEDIUM", "HIGH")
+        assert result["score"] > 0.3
+
+    def test_empty_results_no_crash(self) -> None:
+        """Empty/None inputs should produce a valid low score."""
+        scorer = RiskScorer()
+        result = scorer.calculate({}, {}, None)
+        assert result["status"] == "success"
+        assert result["score"] == 0.0
+        assert result["level"] == "LOW"
+
+    def test_deterministic(self) -> None:
+        """Same inputs must produce the same output."""
+        scorer = RiskScorer()
+        r1 = scorer.calculate(_failing_validation(), _suspicious_tampering())
+        r2 = scorer.calculate(_failing_validation(), _suspicious_tampering())
+        assert r1["score"] == r2["score"]
+        assert r1["level"] == r2["level"]

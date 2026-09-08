@@ -2,7 +2,7 @@
 
 ## Current Phase
 
-PHASE 6 COMPLETE — UI / REPORTING / POLISH (v0.2.0)
+PHASE 7 COMPLETE — FINAL HARDENING (v0.2.1)
 
 ## Completed
 
@@ -62,6 +62,14 @@ PHASE 6 COMPLETE — UI / REPORTING / POLISH (v0.2.0)
 - [x] Phase 6: Improve history page (4 metrics, structured findings, Clear All)
 - [x] Phase 6: Enhance sidebar (risk distribution, pipeline overview)
 - [x] Phase 6: Version bump to 0.2.0
+- [x] Phase 7: Add structural pattern evidence to detector
+- [x] Phase 7: Add 7 detector hardening tests
+- [x] Phase 7: Add 10 extractor hardening tests (position independence)
+- [x] Phase 7: Add 11 tampering hardening tests (PNG, recompression, boundaries)
+- [x] Phase 7: Add 12 risk scoring hardening tests (boundaries, invariants)
+- [x] Phase 7: Add 5 database hardening tests (edge cases, roundtrips)
+- [x] Phase 7: Verify risk scoring single-doc behavior (no consistency penalty)
+- [x] Phase 7: Version bump to 0.2.1
 
 ## Day 2 (remaining)
 

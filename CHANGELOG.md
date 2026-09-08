@@ -2,6 +2,66 @@
 
 ## 2026-09-07
 
+### Phase 7 — Final Hardening (v0.2.1)
+
+Hardened the existing MVP for stability, reliability, and demo readiness.
+No new features added — focus on robustness and test coverage.
+
+Completed:
+
+- Document detector hardening
+  - Added structural pattern evidence alongside keyword matching
+  - Aadhaar: 12-digit number pattern boosts detection confidence
+  - PAN: XXXXX0000X alphanumeric pattern boosts detection
+  - Voter ID: XXX0000000 EPIC pattern boosts detection
+  - Structural evidence counts as 1 extra keyword hit
+  - Helps detect documents when OCR misreads keywords or text is multilingual
+- Extractor verification
+  - Confirmed PAN number extraction works regardless of position in OCR text
+  - Confirmed re.search scans entire text (not position-dependent)
+  - Added 10 regression tests for position independence and edge cases
+- Tampering analysis hardening
+  - Added tests for recompressed JPEG images
+  - Added tests for PNG source images
+  - Added tests for low-detail and high-detail images
+  - Added deterministic behavior verification
+  - Added grayscale and BGRA input handling tests
+  - Added boundary condition tests (minimum size)
+- Risk scoring review
+  - Verified single-document screening does NOT increase risk from missing consistency
+  - Verified consistency mismatches produce visible indicators
+  - Added boundary threshold tests (0.3 → LOW, 0.6 → MEDIUM, >0.6 → HIGH)
+  - Added weight normalization verification (sums to 1.0)
+- Error handling improvement
+  - app.py: Categorized errors (image read, memory, unexpected)
+  - User-friendly messages without raw Python tracebacks
+  - Technical details in collapsed expander
+- Database hardening
+  - Added tests for empty records, None findings, nested JSON roundtrip
+  - Verified new database directory creation
+  - Verified empty database queries
+- Version bumped to 0.2.1
+
+Test count: 219 → 262 (43 new hardening tests, 0 regressions)
+
+Files modified:
+- src/documents/detector.py — Structural pattern evidence
+- tests/test_detector.py — 7 new structural evidence tests
+- tests/test_extractor.py — 10 new hardening tests
+- tests/test_tampering.py — 11 new hardening tests
+- tests/test_risk_scoring.py — 12 new hardening tests
+- tests/test_db.py — 5 new hardening tests
+- src/config.py — Version bump to 0.2.1
+- CHANGELOG.md — This entry
+- TODO.md — Phase 7 items
+- PROJECT_CONTEXT.md — Updated
+- DECISIONS.md — New decisions
+
+No changes to screening pipeline logic (OCR, extraction, validation,
+tampering analysis, consistency, risk scoring algorithms unchanged).
+
+## 2026-09-07
+
 ### Phase 6 — UI / Reporting / Polish (v0.2.0)
 
 Improved the Streamlit application for professional presentation and SIH

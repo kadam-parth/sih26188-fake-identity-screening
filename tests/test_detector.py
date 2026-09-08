@@ -138,3 +138,58 @@ class TestDetectorEdgeCases:
         text = "UIDAI Aadhaar card"
         result = detector.detect(text)
         assert len(result["matched_keywords"]) >= 2
+
+# ── Structural Evidence Tests ────────────────────────────────────────
+
+class TestStructuralEvidence:
+    def test_aadhaar_structural_pattern(self, detector) -> None:
+        # Only 1 keyword ("aadhaar") + 12-digit ID
+        text = "Some random text aadhaar 1234 5678 9012"
+        result = detector.detect(text)
+        assert result["document_type"] == "aadhaar"
+        assert result["status"] == "success"
+        assert "[pattern: 12-digit ID]" in result["matched_keywords"]
+        assert len(result["matched_keywords"]) == 2
+
+    def test_pan_structural_pattern(self, detector) -> None:
+        # Only 1 keyword ("pan") + PAN pattern
+        text = "Random words pan ABCDE1234F stuff"
+        result = detector.detect(text)
+        assert result["document_type"] == "pan"
+        assert result["status"] == "success"
+        assert "[pattern: PAN format]" in result["matched_keywords"]
+
+    def test_voter_id_structural_pattern(self, detector) -> None:
+        # Only 1 keyword ("voter") + EPIC pattern
+        text = "voter ID details ABC1234567 something"
+        result = detector.detect(text)
+        assert result["document_type"] == "voter_id"
+        assert result["status"] == "success"
+        assert "[pattern: EPIC format]" in result["matched_keywords"]
+
+    def test_multilingual_aadhaar(self, detector) -> None:
+        # Hindi keyword ("आधार") + 12-digit ID
+        text = "नाम: राहुल\nआधार: 987654321098"
+        result = detector.detect(text)
+        assert result["document_type"] == "aadhaar"
+        assert result["status"] == "success"
+
+    def test_ocr_noise_tolerance(self, detector) -> None:
+        # 1 valid keyword ("uidai") + misspelled "aadhaar" (aadhaaar) + 12-digit pattern
+        text = "uidai aadhaaar 111122223333"
+        result = detector.detect(text)
+        assert result["document_type"] == "aadhaar"
+        assert result["status"] == "success"
+        assert len(result["matched_keywords"]) >= 2
+
+    def test_ambiguous_no_guess(self, detector) -> None:
+        # No clear evidence
+        text = "Just some text without any identifiable documents or keywords."
+        result = detector.detect(text)
+        assert result["status"] == "no_match"
+
+    def test_unsupported_document(self, detector) -> None:
+        # Passport-like text
+        text = "Republic of India Passport Name Surname Z1234567"
+        result = detector.detect(text)
+        assert result["status"] == "no_match"

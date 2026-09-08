@@ -96,3 +96,67 @@ class TestScreeningDatabase:
         sid = db.save_screening(sample_screening)
         row = db.get_screening(sid)
         assert row["findings"] == sample_screening["findings"]
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Phase 7: Hardening tests
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+class TestDBHardening:
+    """Phase 7 hardening tests for database edge cases."""
+
+    def test_save_empty_record(self, db: ScreeningDatabase) -> None:
+        """Empty dict should not crash — returns -1 or valid ID."""
+        sid = db.save_screening({})
+        # Should handle gracefully (may return -1 or succeed with defaults)
+        assert isinstance(sid, int)
+
+    def test_save_none_findings(self, db: ScreeningDatabase) -> None:
+        """Record with None findings should save and retrieve."""
+        record = {
+            "timestamp": "2026-01-01T00:00:00",
+            "document_type": "aadhaar",
+            "risk_score": 0.0,
+            "risk_level": "LOW",
+            "findings": None,
+            "file_hash": "test",
+        }
+        sid = db.save_screening(record)
+        assert sid > 0
+        row = db.get_screening(sid)
+        assert row is not None
+
+    def test_get_all_empty_db(self, db: ScreeningDatabase) -> None:
+        """Empty database should return empty list, not crash."""
+        results = db.get_all_screenings()
+        assert results == []
+        assert db.get_screening_count() == 0
+
+    def test_nested_findings_roundtrip(self, db: ScreeningDatabase) -> None:
+        """Complex nested findings should survive JSON roundtrip."""
+        complex_findings = {
+            "validation": {"checks": [{"passed": True, "message": "OK"}], "valid_count": 1},
+            "tampering": {"checks": [{"name": "ELA", "suspicious": False}], "score": 0.1},
+            "risk": {"factors": [{"category": "validation", "name": "test"}]},
+            "consistency": {"status": "success", "consistent": True},
+        }
+        record = {
+            "timestamp": "2026-01-01T00:00:00",
+            "document_type": "pan",
+            "risk_score": 0.15,
+            "risk_level": "LOW",
+            "findings": complex_findings,
+            "file_hash": "nested_test",
+        }
+        sid = db.save_screening(record)
+        row = db.get_screening(sid)
+        assert row["findings"]["validation"]["checks"][0]["passed"] is True
+        assert row["findings"]["risk"]["factors"][0]["category"] == "validation"
+
+    def test_new_db_dir_creation(self, tmp_path: Path) -> None:
+        """DB should create nested directories if they don't exist."""
+        db_path = tmp_path / "a" / "b" / "c" / "test.db"
+        db = ScreeningDatabase(db_path=str(db_path))
+        assert db_path.exists()
+        assert db.get_screening_count() == 0

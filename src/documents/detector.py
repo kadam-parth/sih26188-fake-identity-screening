@@ -80,6 +80,10 @@ class DocumentDetector:
                 if self._keyword_matches(kw_norm, normalized):
                     matched.append(kw)
 
+            structural_match = self._structural_evidence(doc_key, normalized)
+            if structural_match:
+                matched.append(structural_match)
+
             if len(matched) > best_hits:
                 best_hits = len(matched)
                 best_type = doc_key
@@ -144,6 +148,21 @@ class DocumentDetector:
         # single word → word-boundary match
         pattern = r"\b" + re.escape(keyword) + r"\b"
         return bool(re.search(pattern, normalized_text))
+
+    @staticmethod
+    def _structural_evidence(doc_type: str, text: str) -> str | None:
+        """Check for document-specific identifier patterns in text."""
+        text_upper = text.upper()
+        if doc_type == "aadhaar":
+            if re.search(r"\b\d{4}\s?\d{4}\s?\d{4}\b", text_upper):
+                return "[pattern: 12-digit ID]"
+        elif doc_type == "pan":
+            if re.search(r"\b[A-Z]{5}\d{4}[A-Z]\b", text_upper):
+                return "[pattern: PAN format]"
+        elif doc_type == "voter_id":
+            if re.search(r"\b[A-Z]{3}\d{7}\b", text_upper):
+                return "[pattern: EPIC format]"
+        return None
 
     def _no_match_result(self, message: str) -> dict:
         """Return a standard no-match result dict."""

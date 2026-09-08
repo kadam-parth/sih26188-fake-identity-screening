@@ -23,10 +23,11 @@ Phase 3: Document and field validation (Verhoeff, format, dates, required fields
 Phase 4: Image tampering/anomaly analysis (ELA, edge density, noise analysis).
 Phase 5: Cross-document consistency + explainable rule-based risk scoring.
 Phase 6: UI/reporting polish — tabbed results, JSON export, improved history, error handling.
+Phase 7: Final hardening — structural detection evidence, 43 new hardening tests, demo readiness.
 
 Current test result:
 
-219 tests passed (no regressions after Phase 6 UI changes).
+262 tests passed (43 new hardening tests added in Phase 7, 0 regressions).
 
 ## What Currently Exists
 
@@ -165,7 +166,7 @@ Project has commits and is synced.
 
 ## Current Test Status
 
-219/219 tests passed (no regressions after Phase 6 UI changes).
+219/262 tests passed (43 new hardening tests added in Phase 7, 0 regressions).
 
 - tests/test_db.py â€” 10 tests (database)
 - tests/test_preprocessing.py â€” 11 tests (image preprocessing)

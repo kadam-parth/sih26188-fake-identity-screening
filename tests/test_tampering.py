@@ -359,3 +359,111 @@ class TestHonestyLanguage:
         result = analyzer.analyze(img)
         if not result["overall_suspicious"]:
             assert "does not guarantee" in result["message"].lower()
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# Phase 7: Hardening tests
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+class TestHardening:
+    """Additional hardening tests for stability and edge cases."""
+
+    def test_recompressed_image(self) -> None:
+        """Recompressing a normal document image via JPEG should not crash
+        and should produce valid results."""
+        analyzer = TamperingAnalyzer()
+        original = _synthetic_document()
+        # Simulate JPEG recompression cycle
+        _, buf = cv2.imencode(".jpg", original, [cv2.IMWRITE_JPEG_QUALITY, 50])
+        recompressed = cv2.imdecode(np.frombuffer(buf, np.uint8), cv2.IMREAD_COLOR)
+        result = analyzer.analyze(recompressed)
+        assert result["status"] == "success"
+        assert len(result["checks"]) == 3
+        assert 0.0 <= result["suspicion_score"] <= 1.0
+
+    def test_png_source_image(self) -> None:
+        """A PNG image should be analyzable. ELA via JPEG recompression
+        still works but the context is different."""
+        analyzer = TamperingAnalyzer()
+        # PNG does not have JPEG artifacts — should still produce valid results
+        img = _synthetic_document()
+        _, buf = cv2.imencode(".png", img)
+        png_img = cv2.imdecode(np.frombuffer(buf, np.uint8), cv2.IMREAD_COLOR)
+        result = analyzer.analyze(png_img)
+        assert result["status"] == "success"
+        assert len(result["checks"]) == 3
+
+    def test_low_detail_image(self) -> None:
+        """An image with very few features (mostly blank) should not crash."""
+        analyzer = TamperingAnalyzer()
+        # White image with a single thin line
+        img = np.full((200, 200, 3), 255, dtype=np.uint8)
+        cv2.line(img, (10, 100), (190, 100), (0, 0, 0), 1)
+        result = analyzer.analyze(img)
+        assert result["status"] == "success"
+
+    def test_high_detail_image(self) -> None:
+        """An image with lots of features should not crash or produce
+        unreasonable scores."""
+        analyzer = TamperingAnalyzer()
+        # Dense text-like image
+        img = np.full((400, 600, 3), 230, dtype=np.uint8)
+        for y in range(20, 380, 12):
+            for x in range(20, 580, 8):
+                cv2.putText(img, "X", (x, y), cv2.FONT_HERSHEY_SIMPLEX,
+                            0.3, (30, 30, 30), 1)
+        result = analyzer.analyze(img)
+        assert result["status"] == "success"
+        assert 0.0 <= result["suspicion_score"] <= 1.0
+
+    def test_deterministic_behavior(self) -> None:
+        """Same input should produce same output."""
+        analyzer = TamperingAnalyzer()
+        img = _synthetic_document()
+        r1 = analyzer.analyze(img)
+        r2 = analyzer.analyze(img)
+        assert r1["suspicion_score"] == r2["suspicion_score"]
+        assert r1["overall_suspicious"] == r2["overall_suspicious"]
+        for c1, c2 in zip(r1["checks"], r2["checks"]):
+            assert c1["suspicious"] == c2["suspicious"]
+
+    def test_grayscale_input(self) -> None:
+        """Grayscale images should be handled without crash."""
+        analyzer = TamperingAnalyzer()
+        gray = np.full((200, 200), 128, dtype=np.uint8)
+        cv2.putText(gray, "Test", (50, 100), cv2.FONT_HERSHEY_SIMPLEX,
+                    1.0, 30, 2)
+        result = analyzer.analyze(gray)
+        assert result["status"] == "success"
+
+    def test_bgra_input(self) -> None:
+        """BGRA (4-channel) images should be handled."""
+        analyzer = TamperingAnalyzer()
+        bgra = np.full((200, 200, 4), 128, dtype=np.uint8)
+        bgra[:, :, 3] = 255  # opaque alpha
+        result = analyzer.analyze(bgra)
+        assert result["status"] == "success"
+
+    def test_minimum_size_boundary(self) -> None:
+        """Image at exactly the minimum size should work."""
+        analyzer = TamperingAnalyzer()
+        min_dim = analyzer.config.get("min_image_dimension", 20)
+        img = np.full((min_dim, min_dim, 3), 128, dtype=np.uint8)
+        result = analyzer.analyze(img)
+        assert result["status"] == "success"
+
+    def test_just_below_minimum_size(self) -> None:
+        """Image below minimum size should return error."""
+        analyzer = TamperingAnalyzer()
+        min_dim = analyzer.config.get("min_image_dimension", 20)
+        img = np.full((min_dim - 1, min_dim, 3), 128, dtype=np.uint8)
+        result = analyzer.analyze(img)
+        assert result["status"] == "error"
+
+    def test_ela_image_returned(self) -> None:
+        """ELA visualization should be returned for valid images."""
+        analyzer = TamperingAnalyzer()
+        result = analyzer.analyze(_synthetic_document())
+        assert result["ela_image"] is not None
+        assert isinstance(result["ela_image"], np.ndarray)

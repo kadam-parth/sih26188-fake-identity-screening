@@ -1,6 +1,6 @@
-# ARCHITECTURAL DECISIONS
+ï»¿# ARCHITECTURAL DECISIONS
 
-## Decision 001 — MVP First
+## Decision 001 ï¿½ MVP First
 
 ### Decision
 
@@ -15,7 +15,7 @@ Complex infrastructure and large model training are out of scope.
 
 ---
 
-## Decision 002 — Local-First Processing
+## Decision 002 ï¿½ Local-First Processing
 
 ### Decision
 
@@ -29,7 +29,7 @@ The MVP should avoid unnecessary external document-processing services.
 
 ---
 
-## Decision 003 — Streamlit
+## Decision 003 ï¿½ Streamlit
 
 ### Decision
 
@@ -42,7 +42,7 @@ requiring a separate frontend/backend stack.
 
 ---
 
-## Decision 004 — OpenCV
+## Decision 004 ï¿½ OpenCV
 
 ### Decision
 
@@ -55,7 +55,7 @@ tasks.
 
 ---
 
-## Decision 005 — EasyOCR
+## Decision 005 ï¿½ EasyOCR
 
 ### Decision
 
@@ -73,7 +73,7 @@ alternative rather than forcing it.
 
 ---
 
-## Decision 006 — Initial Document Types
+## Decision 006 ï¿½ Initial Document Types
 
 ### Decision
 
@@ -91,7 +91,7 @@ The architecture should allow additional document types later.
 
 ---
 
-## Decision 007 — Rule-Based Risk Engine
+## Decision 007 ï¿½ Rule-Based Risk Engine
 
 ### Decision
 
@@ -106,7 +106,7 @@ The score represents screening indicators, not a calibrated probability.
 
 ---
 
-## Decision 008 — Face Verification Deferred
+## Decision 008 ï¿½ Face Verification Deferred
 
 ### Decision
 
@@ -121,7 +121,7 @@ Core document screening has higher MVP priority.
 
 ---
 
-## Decision 009 — Git as Project Memory
+## Decision 009 ï¿½ Git as Project Memory
 
 ### Decision
 
@@ -142,7 +142,7 @@ AI conversation history must not be the only source of project context.
 
 ---
 
-## Decision 010 — AI Continuity Documentation
+## Decision 010 ï¿½ AI Continuity Documentation
 
 ### Decision
 
@@ -162,7 +162,7 @@ from the repository.
 
 ---
 
-## Decision 011 — No Fake AI Results
+## Decision 011 ï¿½ No Fake AI Results
 
 ### Decision
 
@@ -177,7 +177,7 @@ Synthetic data may be used for testing, but must be clearly identified.
 
 ---
 
-## Decision 012 — Human Review
+## Decision 012 ï¿½ Human Review
 
 ### Decision
 
@@ -190,7 +190,7 @@ fraudulent-person determinations.
 
 ---
 
-## Decision 013 — No Real Identity Documents in Git
+## Decision 013 ï¿½ No Real Identity Documents in Git
 
 ### Decision
 
@@ -459,7 +459,7 @@ Reorganize the screening results into 4 tabs: Screening Assessment, Fields & Val
 A single scrolling page with all results is overwhelming for demos. Tabs reduce cognitive load while keeping all information accessible. The risk score hero display stays above tabs so the headline result is always visible.
 
 ### Status
-Implemented — Phase 6
+Implemented ï¿½ Phase 6
 
 ## Decision 030 - JSON Report Export
 
@@ -470,7 +470,7 @@ Provide a downloadable JSON screening report using Streamlit's built-in download
 JSON is lightweight, requires no new dependencies, preserves structured data, and can be parsed by other tools. PDF would require additional libraries (e.g., reportlab, fpdf) which increases project complexity for a hackathon prototype.
 
 ### Status
-Implemented — Phase 6
+Implemented ï¿½ Phase 6
 
 ## Decision 031 - User-Friendly Error Categorization
 
@@ -481,4 +481,25 @@ Categorize pipeline errors into specific types (image read errors, memory errors
 Raw tracebacks confuse non-technical users during demos. Categorized messages help users understand what went wrong and what to try next. Technical details remain accessible for debugging.
 
 ### Status
-Implemented — Phase 6
+Implemented ï¿½ Phase 6
+## Decision 032 - Structural Pattern Evidence for Detection
+
+### Decision
+Add structural identifier pattern matching alongside keyword detection. Each document type has a characteristic identifier pattern (Aadhaar: 12-digit, PAN: XXXXX0000X, Voter ID: XXX0000000) that counts as one additional evidence hit.
+
+### Rationale
+OCR on documents with Hindi/regional text may not produce enough English keyword matches. Structural patterns provide language-independent evidence that helps reach the minimum detection threshold without replacing or weakening the keyword system.
+
+### Status
+Implemented â€” Phase 7
+
+## Decision 033 - Hardening Over Features
+
+### Decision
+Phase 7 adds zero new features. All changes focus on robustness testing, edge-case coverage, and documentation. 43 new tests were added covering detection, extraction, tampering, risk scoring, and database edge cases.
+
+### Rationale
+The MVP has all required features from Phases 1â€“6. Adding more features increases risk of regressions. Hardening ensures demo reliability for SIH presentation.
+
+### Status
+Implemented â€” Phase 7

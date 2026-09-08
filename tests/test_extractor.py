@@ -185,3 +185,62 @@ class TestExtractorEdgeCases:
         if "pan_number" in result["fields"]:
             assert "label" in result["fields"]["pan_number"]
             assert result["fields"]["pan_number"]["label"] == "PAN Number"
+
+
+class TestExtractorHardening:
+    def test_pan_number_at_beginning(self, extractor) -> None:
+        text = "ABCDE1234F\nSome other text here\nAnd more"
+        result = extractor.extract(text, "pan")
+        assert "pan_number" in result["fields"]
+        assert result["fields"]["pan_number"]["value"] == "ABCDE1234F"
+
+    def test_pan_number_in_middle(self, extractor) -> None:
+        text = "Start text\nHere is ABCDE1234F embedded\nEnd text"
+        result = extractor.extract(text, "pan")
+        assert "pan_number" in result["fields"]
+        assert result["fields"]["pan_number"]["value"] == "ABCDE1234F"
+
+    def test_pan_number_at_end(self, extractor) -> None:
+        text = "Some intro text\nMore text\nABCDE1234F"
+        result = extractor.extract(text, "pan")
+        assert "pan_number" in result["fields"]
+        assert result["fields"]["pan_number"]["value"] == "ABCDE1234F"
+
+    def test_aadhaar_number_with_spaces(self, extractor) -> None:
+        text = "Aadhaar: 1234 5678 9012"
+        result = extractor.extract(text, "aadhaar")
+        assert "aadhaar_number" in result["fields"]
+        assert result["fields"]["aadhaar_number"]["value"].replace(" ", "") == "123456789012"
+
+    def test_aadhaar_number_without_spaces(self, extractor) -> None:
+        text = "Aadhaar: 123456789012"
+        result = extractor.extract(text, "aadhaar")
+        assert "aadhaar_number" in result["fields"]
+        assert result["fields"]["aadhaar_number"]["value"] == "123456789012"
+
+    def test_extraction_with_ocr_noise(self, extractor) -> None:
+        text = "~~ABCDE1234F==\nName: %RAJESH_KUMAR*"
+        result = extractor.extract(text, "pan")
+        assert "pan_number" in result["fields"]
+        assert result["fields"]["pan_number"]["value"] == "ABCDE1234F"
+
+    def test_missing_name_label(self, extractor) -> None:
+        text = "RAJESH KUMAR\nDOB: 15/08/1990"
+        result = extractor.extract(text, "pan")
+        assert "name" not in result["fields"]
+
+    def test_empty_text_extraction(self, extractor) -> None:
+        result = extractor.extract("", "pan")
+        assert result["status"] == "no_fields"
+        assert result["extraction_count"] == 0
+
+    def test_none_value_not_fabricated(self, extractor) -> None:
+        text = "Just some random text\nNo ID here"
+        result = extractor.extract(text, "pan")
+        assert "pan_number" not in result["fields"]
+
+    def test_none_input_handled(self, extractor) -> None:
+        # Edge case: passing None instead of string
+        result = extractor.extract(None, "pan")
+        assert result["status"] == "no_fields"
+        assert result["raw_text"] == ""
