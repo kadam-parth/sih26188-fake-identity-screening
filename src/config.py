@@ -105,7 +105,7 @@ DOCUMENT_TYPES: dict = {
         "fields": {
             "pan_number": {
                 "label": "PAN Number",
-                "pattern": r"[A-Z]{5}[0-9]{4}[A-Z]",
+                "pattern": r"([A-Z] ?[A-Z] ?[A-Z] ?[A-Z] ?[A-Z] ?[0-9] ?[0-9] ?[0-9] ?[0-9] ?[A-Z])",
                 "format_description": "10 characters (ABCDE1234F)",
                 "sensitive": True,
                 "required": True,

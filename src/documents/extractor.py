@@ -106,6 +106,11 @@ class FieldExtractor:
 
             value = self._extract_field(pattern, ocr_text)
             if value is not None:
+                # Normalize ID-number fields: collapse internal whitespace
+                # and uppercase.  OCR often inserts spaces between characters
+                # of printed IDs (e.g. "A B C D E 1 2 3 4 F" for PAN).
+                if field_name.endswith("_number"):
+                    value = re.sub(r"\s+", "", value).upper()
                 fields[field_name] = {
                     "value": value,
                     "confidence": EXTRACTION_CONFIDENCE,

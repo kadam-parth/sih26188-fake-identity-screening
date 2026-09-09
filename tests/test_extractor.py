@@ -244,3 +244,101 @@ class TestExtractorHardening:
         result = extractor.extract(None, "pan")
         assert result["status"] == "no_fields"
         assert result["raw_text"] == ""
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PAN extraction regression tests (bug fix)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+class TestPANExtractionRegression:
+    """Regression tests for PAN number extraction.
+
+    Verifies the PAN pattern matches the structural format AAAAA0000A
+    regardless of position, whitespace, or case in OCR output.
+    """
+
+    @pytest.fixture
+    def extractor(self) -> FieldExtractor:
+        return FieldExtractor()
+
+    def test_pan_contiguous_uppercase(self, extractor) -> None:
+        """Standard contiguous uppercase PAN."""
+        text = "INCOME TAX DEPARTMENT\nABCDE1234F\nName: RAHUL"
+        result = extractor.extract(text, "pan")
+        assert result["fields"]["pan_number"]["value"] == "ABCDE1234F"
+
+    def test_pan_with_spaces(self, extractor) -> None:
+        """OCR inserts spaces between characters."""
+        text = "INCOME TAX\nA B C D E 1 2 3 4 F\nName: RAHUL"
+        result = extractor.extract(text, "pan")
+        assert result["fields"]["pan_number"]["value"] == "ABCDE1234F"
+
+    def test_pan_lowercase_ocr(self, extractor) -> None:
+        """OCR produces lowercase."""
+        text = "income tax department\nabcde1234f\nname: rahul"
+        result = extractor.extract(text, "pan")
+        assert result["fields"]["pan_number"]["value"] == "ABCDE1234F"
+
+    def test_pan_mixed_case(self, extractor) -> None:
+        """OCR produces mixed case."""
+        text = "Income Tax\nAbCdE1234f\nName: Rahul"
+        result = extractor.extract(text, "pan")
+        assert result["fields"]["pan_number"]["value"] == "ABCDE1234F"
+
+    def test_pan_at_beginning(self, extractor) -> None:
+        """PAN appears at the beginning of OCR text."""
+        text = "ABCDE1234F INCOME TAX DEPARTMENT Name: RAHUL"
+        result = extractor.extract(text, "pan")
+        assert result["fields"]["pan_number"]["value"] == "ABCDE1234F"
+
+    def test_pan_in_middle(self, extractor) -> None:
+        """PAN appears in the middle of OCR text."""
+        text = "INCOME TAX DEPARTMENT ABCDE1234F Permanent Account Number"
+        result = extractor.extract(text, "pan")
+        assert result["fields"]["pan_number"]["value"] == "ABCDE1234F"
+
+    def test_pan_at_end(self, extractor) -> None:
+        """PAN appears at the end of OCR text."""
+        text = "INCOME TAX DEPARTMENT\nName: RAHUL\nABCDE1234F"
+        result = extractor.extract(text, "pan")
+        assert result["fields"]["pan_number"]["value"] == "ABCDE1234F"
+
+    def test_pan_surrounded_by_labels(self, extractor) -> None:
+        """PAN surrounded by typical card labels."""
+        text = "Permanent Account Number\nABCDE1234F\nName: RAHUL SHARMA\nFather's Name: SURESH"
+        result = extractor.extract(text, "pan")
+        assert result["fields"]["pan_number"]["value"] == "ABCDE1234F"
+
+    def test_pan_invalid_format_not_extracted(self, extractor) -> None:
+        """Invalid PAN format should not be extracted."""
+        text = "INCOME TAX\n12345ABCDE\nName: RAHUL"
+        result = extractor.extract(text, "pan")
+        assert "pan_number" not in result["fields"]
+
+    def test_pan_too_short_not_extracted(self, extractor) -> None:
+        """Short alphanumeric strings should not match."""
+        text = "INCOME TAX\nABCD1234\nName: RAHUL"
+        result = extractor.extract(text, "pan")
+        assert "pan_number" not in result["fields"]
+
+    def test_pan_empty_text(self, extractor) -> None:
+        """Empty OCR text should not extract PAN."""
+        result = extractor.extract("", "pan")
+        assert result["status"] == "no_fields"
+
+    def test_pan_value_always_uppercase(self, extractor) -> None:
+        """Extracted PAN should always be returned uppercase."""
+        text = "income tax abcde1234f name rahul"
+        result = extractor.extract(text, "pan")
+        pan = result["fields"].get("pan_number", {}).get("value")
+        if pan is not None:
+            assert pan == pan.upper()
+
+    def test_pan_spaces_collapsed(self, extractor) -> None:
+        """Extracted PAN should not contain internal spaces."""
+        text = "A B C D E 1 2 3 4 F"
+        result = extractor.extract(text, "pan")
+        pan = result["fields"]["pan_number"]["value"]
+        assert pan == "ABCDE1234F"
+        assert " " not in pan
