@@ -106,25 +106,40 @@ class FieldExtractor:
 
             value = self._extract_field(pattern, ocr_text)
 
-            # PAN-specific fallback: if the strict pattern (digits-only
-            # at positions 5–8) didn't match, try a relaxed pattern that
-            # accepts letters at digit positions, then correct via
-            # _correct_pan_digits.  This handles OCR errors like 4→A.
-            # Uses finditer to skip false positives (e.g. "INCOME TAX D").
+            # PAN-specific fallback: if strict matching fails, look for a
+            # PAN-like token and apply position-aware OCR correction.
             if value is None and field_name == "pan_number":
-                _PAN_RELAXED = (
-                    r"([A-Z] ?[A-Z] ?[A-Z] ?[A-Z] ?[A-Z] ?"
-                    r"[A-Z0-9] ?[A-Z0-9] ?[A-Z0-9] ?[A-Z0-9] ?[A-Z])"
-                )
+                _PAN_RELAXED = r"\b[A-Z]{5}[A-Z0-9]{4}[A-Z]\b"
+
                 try:
+                    # Pass 1: contiguous PAN-like token.
                     for m in re.finditer(_PAN_RELAXED, ocr_text, re.IGNORECASE):
-                        candidate = m.group(1)
-                        candidate = re.sub(r"\s+", "", candidate).upper()
-                        if len(candidate) == 10:
+                        candidate = m.group(0).upper()
+                        corrected = self._correct_pan_digits(candidate)
+
+                        if corrected is not None:
+                            value = corrected
+                            break
+
+                    # Pass 2: OCR may insert spaces between every character,
+                    # e.g. "A B C D E 1 2 3 A F".
+                    if value is None:
+                        _PAN_SPACED = (
+                            r"\b([A-Z])\s+([A-Z])\s+([A-Z])\s+([A-Z])\s+([A-Z])"
+                            r"\s+([A-Z0-9])\s+([A-Z0-9])\s+([A-Z0-9])"
+                            r"\s+([A-Z0-9])\s+([A-Z])\b"
+                        )
+
+                        for m in re.finditer(
+                            _PAN_SPACED, ocr_text, re.IGNORECASE
+                        ):
+                            candidate = "".join(m.groups()).upper()
                             corrected = self._correct_pan_digits(candidate)
+
                             if corrected is not None:
                                 value = corrected
                                 break
+
                 except re.error:
                     pass
 
