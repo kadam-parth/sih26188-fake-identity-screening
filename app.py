@@ -399,6 +399,7 @@ def page_screening() -> None:
                     # 4. Field extraction
                     st.write("📋 Extracting identity fields…")
                     extractor = FieldExtractor()
+                    
                     extract_result = extractor.extract(ocr_result.get("text", ""), doc_type or "")
 
                     # 5. Validation
