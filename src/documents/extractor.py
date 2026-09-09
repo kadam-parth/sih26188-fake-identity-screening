@@ -105,12 +105,45 @@ class FieldExtractor:
                 continue
 
             value = self._extract_field(pattern, ocr_text)
+
+            # PAN-specific fallback: if the strict pattern (digits-only
+            # at positions 5–8) didn't match, try a relaxed pattern that
+            # accepts letters at digit positions, then correct via
+            # _correct_pan_digits.  This handles OCR errors like 4→A.
+            # Uses finditer to skip false positives (e.g. "INCOME TAX D").
+            if value is None and field_name == "pan_number":
+                _PAN_RELAXED = (
+                    r"([A-Z] ?[A-Z] ?[A-Z] ?[A-Z] ?[A-Z] ?"
+                    r"[A-Z0-9] ?[A-Z0-9] ?[A-Z0-9] ?[A-Z0-9] ?[A-Z])"
+                )
+                try:
+                    for m in re.finditer(_PAN_RELAXED, ocr_text, re.IGNORECASE):
+                        candidate = m.group(1)
+                        candidate = re.sub(r"\s+", "", candidate).upper()
+                        if len(candidate) == 10:
+                            corrected = self._correct_pan_digits(candidate)
+                            if corrected is not None:
+                                value = corrected
+                                break
+                except re.error:
+                    pass
+
             if value is not None:
                 # Normalize ID-number fields: collapse internal whitespace
                 # and uppercase.  OCR often inserts spaces between characters
                 # of printed IDs (e.g. "A B C D E 1 2 3 4 F" for PAN).
                 if field_name.endswith("_number"):
                     value = re.sub(r"\s+", "", value).upper()
+
+                # PAN-specific: correct common OCR letter→digit errors
+                # at the 4 digit positions (indices 5–8).  If a position
+                # cannot be mapped to a digit, reject the match entirely
+                # to avoid fabricating a PAN value.
+                if field_name == "pan_number" and len(value) == 10:
+                    value = self._correct_pan_digits(value)
+                    if value is None:
+                        continue  # reject — uncorrectable OCR error
+
                 fields[field_name] = {
                     "value": value,
                     "confidence": EXTRACTION_CONFIDENCE,
@@ -162,6 +195,45 @@ class FieldExtractor:
             value = match.group(0)
 
         return value.strip() if value else None
+
+    @staticmethod
+    def _correct_pan_digits(pan: str) -> str | None:
+        """Correct common OCR letter→digit errors at PAN digit positions.
+
+        PAN format: AAAAA9999A — positions 5–8 must be digits.
+        OCR sometimes reads digits as visually similar letters
+        (e.g. 4→A, 0→O, 1→I).  This method applies a conservative
+        map **only** at the 4 digit positions.
+
+        Returns the corrected PAN, or ``None`` if any digit position
+        contains a letter that cannot be safely mapped to a digit.
+        This prevents fabrication of PAN values from random text.
+        """
+        # Conservative map: letter → digit for visually similar glyphs.
+        # Only characters with a clear visual resemblance are included.
+        OCR_LETTER_TO_DIGIT = {
+            "O": "0",   # O ↔ 0
+            "I": "1",   # I ↔ 1
+            "L": "1",   # l ↔ 1
+            "Z": "2",   # Z ↔ 2
+            "A": "4",   # A ↔ 4  (common in sans-serif OCR)
+            "S": "5",   # S ↔ 5
+            "G": "6",   # G ↔ 6
+            "T": "7",   # T ↔ 7  (crossbar similarity)
+            "B": "8",   # B ↔ 8
+        }
+
+        chars = list(pan)
+        for i in range(5, 9):  # digit positions
+            if chars[i].isdigit():
+                continue
+            replacement = OCR_LETTER_TO_DIGIT.get(chars[i])
+            if replacement is None:
+                # Unknown letter at digit position — cannot safely correct
+                return None
+            chars[i] = replacement
+
+        return "".join(chars)
 
     @staticmethod
     def _determine_status(extracted: int, total: int) -> str:

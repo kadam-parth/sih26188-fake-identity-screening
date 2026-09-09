@@ -342,3 +342,81 @@ class TestPANExtractionRegression:
         pan = result["fields"]["pan_number"]["value"]
         assert pan == "ABCDE1234F"
         assert " " not in pan
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PAN OCR digit-error correction tests
+# ═══════════════════════════════════════════════════════════════════════════════
+
+
+class TestPANOcrCorrection:
+    """Tests for OCR letter→digit correction at PAN digit positions.
+
+    Verifies that common OCR misreads at the 4 digit positions (indices
+    5–8) are corrected conservatively, and that unmappable errors cause
+    rejection rather than fabrication.
+    """
+
+    @pytest.fixture
+    def extractor(self) -> FieldExtractor:
+        return FieldExtractor()
+
+    def test_ocr_A_to_4(self, extractor) -> None:
+        """OCR reads 4 as A — the actual deployed failure case."""
+        text = "INCOME TAX\nABCDE123AF\nName: RAHUL"
+        result = extractor.extract(text, "pan")
+        assert result["fields"]["pan_number"]["value"] == "ABCDE1234F"
+
+    def test_ocr_O_to_0(self, extractor) -> None:
+        """OCR reads 0 as O."""
+        text = "INCOME TAX\nABCDE1O34F\nName: RAHUL"
+        result = extractor.extract(text, "pan")
+        assert result["fields"]["pan_number"]["value"] == "ABCDE1034F"
+
+    def test_ocr_I_to_1(self, extractor) -> None:
+        """OCR reads 1 as I."""
+        text = "INCOME TAX\nABCDEI234F\nName: RAHUL"
+        result = extractor.extract(text, "pan")
+        assert result["fields"]["pan_number"]["value"] == "ABCDE1234F"
+
+    def test_ocr_S_to_5(self, extractor) -> None:
+        """OCR reads 5 as S."""
+        text = "INCOME TAX\nABCDES234F\nName: RAHUL"
+        result = extractor.extract(text, "pan")
+        assert result["fields"]["pan_number"]["value"] == "ABCDE5234F"
+
+    def test_ocr_multiple_errors(self, extractor) -> None:
+        """Multiple OCR errors at digit positions."""
+        text = "INCOME TAX\nABCDEIO3AF\nName: RAHUL"
+        result = extractor.extract(text, "pan")
+        assert result["fields"]["pan_number"]["value"] == "ABCDE1034F"
+
+    def test_unmappable_letter_rejected(self, extractor) -> None:
+        """Letter at digit position not in correction map → reject."""
+        text = "INCOME TAX\nABCDE12X4F\nName: RAHUL"
+        result = extractor.extract(text, "pan")
+        assert "pan_number" not in result["fields"]
+
+    def test_all_alpha_not_pan(self, extractor) -> None:
+        """10-letter all-alpha string should not produce a PAN."""
+        text = "ABCDEFGHIJ some other text"
+        result = extractor.extract(text, "pan")
+        assert "pan_number" not in result["fields"]
+
+    def test_strict_match_preferred(self, extractor) -> None:
+        """When strict pattern matches, no correction is needed."""
+        text = "ABCDE1234F"
+        result = extractor.extract(text, "pan")
+        assert result["fields"]["pan_number"]["value"] == "ABCDE1234F"
+
+    def test_correction_does_not_fabricate(self, extractor) -> None:
+        """Random text must not produce a PAN via correction."""
+        text = "THE QUICK BROWN FOX JUMPED OVER LAZY DOGS"
+        result = extractor.extract(text, "pan")
+        assert "pan_number" not in result["fields"]
+
+    def test_ocr_error_with_spaces(self, extractor) -> None:
+        """OCR error combined with spaces between characters."""
+        text = "A B C D E 1 2 3 A F"
+        result = extractor.extract(text, "pan")
+        assert result["fields"]["pan_number"]["value"] == "ABCDE1234F"
